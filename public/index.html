@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html ng-app='dxmanager'>
+  <head>
+    <title>DX Instance Manager</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="css/style.css" rel="stylesheet" media="screen">
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js"></script>
+    <script src="http://code.angularjs.org/1.0.0rc10/angular-cookies-1.0.0rc10.js"></script>
+  </head>
+  <body>
+    <div class="navbar navbar-static-top navbar-inverse">
+      <div class="navbar-inner">
+        <a class="brand" href="#">DXManager</a>
+        <ul ng-controller="AuthCtrl" class="nav pull-right">
+          <li ng-show="logged_in()"><a href="#" >{{auth()}}</a></li>
+          <li ng-show="!logged_in()"><a href="#login_modal" class='login' data-toggle="modal">Log In</a></li>
+          <li ng-show="logged_in()"><a href="#logout" class='logout' ng-click="log_out()">Logout</a></li>
+          <li><a href="#about_modal"data-toggle="modal">About</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="container">
+      <h1>User Interface</h1>
+      <div id="environment-wrapper" ng-controller="EnvironmentCtrl">
+        <div class='env env-standing {{environment.class}}' ng-class="{busy:is_busy(environment.name), open:is_open(environment.name), taken:!is_open(environment.name)}" ng-repeat="environment in environments">
+          <div class='pull-right'>
+            <dl class="dl-horizontal">
+              <dt>Host</dt>
+              <dd>{{environment.host}}</dd>
+              <dt>Holder</dt>
+              <dd>{{environment.holder || "None"}}</dd>
+              <dt>Version</dt>
+              <dd>{{environment.version}}</dd>
+            </dl>
+          </div>
+          <h3>{{environment.label}}</h3>
+          <form class='form-inline'>
+            <div class='input-append'>
+              <input type='text' ng-model="environment.hash" placeholder='Git Hash'>
+              <button class='btn' ng-click="deploy(environment.name, environment.hash)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">Deploy</button>
+            </div>
+            <button class='btn' ng-click="relinquish(environment.name)" ng-class="{true:'', false:'disabled'}[can_relinquish(environment.name)]">Relinquish</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div id="about_modal" class="modal hide fade" role="dialog" aria-labelledby="about_label" aria-hidden="true">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+        <h3 id="about_label">DataXu Instance Manager</h3>
+      </div>
+      <div class="modal-body">
+        <p>Manage the UI Staging Instances</p>
+        <p>For <a href='http://www.dataxu.com'>DataXu</a> by <a href='http://github.dataxu.net/mferrante' target='_blank'>Matt Ferrante</a>. <a href='http://github.dataxu.net/mferrante/dxmanager'>See source here.</a></p>
+      </div>
+    </div>
+
+    <div id="login_modal" ng-controller="AuthCtrl" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="login_label" aria-hidden="true">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+        <h3 id="login_label">Log In</h3>
+      </div>
+      <div class="modal-body">
+        <form class="form-horizontal" id='form_login' ng-submit="log_in()">
+          <div class="control-group">
+            <label class="control-label" for="login_email">Email</label>
+            <div class="controls">
+              <input type="text" id="login_email" ng-model="login_email" placeholder="Email">
+            </div>
+          </div>
+          <div class="control-group">
+            <div class="controls">
+              <button type="submit" class="btn">Sign in</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="http://code.jquery.com/jquery.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>

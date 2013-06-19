@@ -1,0 +1,30 @@
+.env {
+  border: 1px solid #dddddd;
+  padding: 0 20px;
+  border-radius: 3px;
+  margin-bottom: 5px;
+}
+.env.open{
+  background: #e5ffe5;
+}
+.env.taken{
+  background: #ffeeee;
+}
+@keyframes myfirst
+{
+0% {background: white;}
+50% {background: #eeeeff;}
+100% {background: white;}
+}
+
+@-webkit-keyframes myfirst /* Safari and Chrome */
+{
+0% {background: white;}
+50% {background: #eeeeff;}
+100% {background: white;}
+}
+.env.busy{
+  /*background: #eeeeff;*/
+  animation: myfirst 1s infinite;
+  -webkit-animation: myfirst 1s infinite; /* Safari and Chrome */
+}

@@ -1,0 +1,18 @@
+---
+mongo:
+  host: '127.0.0.1'
+  port: '27017'
+  db: "dxmanager"
+environments:
+  - label: Staging 1
+    name: stg1
+    host: stg-ui-app01
+  - label: Staging 2
+    name: stg2
+    host: stg-ui-app02
+  - label: Staging 3
+    name: stg3
+    host: stg-ui-app03
+  - label: Staging 4
+    name: stg4
+    host: stg-ui-app04
