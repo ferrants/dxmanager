@@ -9,57 +9,59 @@
 })(jQuery);
 
 
-angular.module('dxmanager', ['ngCookies']);
-var prop_set = {};
-shared_properties = {
-  get: function (key) {
-    return prop_set[key];
-  },
-  set: function(key, value) {
-    prop_set[key] = value;
-  }
-};
+var dxmanager = angular.module('dxmanager', ['ngCookies']);
+dxmanager.factory('Properties', function(){
+  var prop_set = {};
+  return {
+    get: function (key) {
+      return prop_set[key];
+    },
+    set: function(key, value) {
+      prop_set[key] = value;
+    }
+  };
+});
 
-function AuthCtrl($scope, $cookies){
+function AuthCtrl($scope, $cookies, Properties){
 
   $scope.check_auth = function(){
     if ($cookies.username){
-      shared_properties.set('logged_in', true);
-      shared_properties.set('username', $cookies.username);
+      Properties.set('logged_in', true);
+      Properties.set('username', $cookies.username);
     }else{
-      shared_properties.set('logged_in', false);
-      shared_properties.set('username', "None");
+      Properties.set('logged_in', false);
+      Properties.set('username', "None");
     }
   };
   $scope.check_auth();
   
   $scope.auth = function(){
-    if (shared_properties.get('logged_in')){
-      return shared_properties.get('username');
+    if (Properties.get('logged_in')){
+      return Properties.get('username');
     }else{
       return "None";
     }
   };
 
   $scope.logged_in = function(){
-    return shared_properties.get('logged_in');
+    return Properties.get('logged_in');
   };
 
   $scope.log_in = function(){
     console.log("Logging in: " + $scope.login_email);
-    shared_properties.set('logged_in', true);
-    shared_properties.set('username', $scope.login_email);
+    Properties.set('logged_in', true);
+    Properties.set('username', $scope.login_email);
     $cookies.username = $scope.login_email;
   };
 
   $scope.log_out = function(){
-    shared_properties.set('logged_in', false);
-    shared_properties.set('username', "None");
+    Properties.set('logged_in', false);
+    Properties.set('username', "None");
     $cookies.username = false;
   };
 }
 
-function EnvironmentCtrl($scope, $http){
+function EnvironmentCtrl($scope, $http, Properties){
   var set_env_map = function(){
     $scope.environment_map = {};
     for (var i in $scope.environments){
@@ -80,7 +82,7 @@ function EnvironmentCtrl($scope, $http){
   };
 
   $scope.can_deploy = function(name){
-    return shared_properties.get('logged_in') && $scope.is_open(name);
+    return Properties.get('logged_in') && $scope.is_open(name);
   };
 
   $scope.is_busy = function(name){
@@ -88,14 +90,14 @@ function EnvironmentCtrl($scope, $http){
   };
 
   $scope.can_relinquish = function(name){
-    return shared_properties.get('logged_in') && $scope.environment_map[name].holder == shared_properties.get('username') && !$scope.is_open(name);
+    return Properties.get('logged_in') && $scope.environment_map[name].holder == Properties.get('username') && !$scope.is_open(name);
   };
 
   $scope.deploy = function(name, hash){
     if ($scope.can_deploy(name)){
       if (name && hash){
         var body = {
-          email: shared_properties.get('username'),
+          email: Properties.get('username'),
           hash: hash,
           name: name
         };
@@ -113,7 +115,7 @@ function EnvironmentCtrl($scope, $http){
   $scope.relinquish = function(name){
     if ($scope.can_relinquish(name)){
       var body = {
-        email: shared_properties.get('username'),
+        email: Properties.get('username'),
         name: name
       };
       $scope.environment_map[name].busy = true;
