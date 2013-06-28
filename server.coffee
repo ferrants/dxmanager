@@ -1,5 +1,7 @@
 express = require 'express'
 mongodb = require 'mongodb'
+http = require 'http'
+urlencode = require 'urlencode'
 assert = require('assert');
 require('js-yaml');
 
@@ -78,8 +80,50 @@ setup_server = () ->
           # console.log item
           item.holder = req.body.email
           item.version = req.body.hash
-          col_environments.save item, () ->
-            res.send {"success": true}
+
+          data_body = {
+            'parameter': [
+              {
+                'name': 'GIT_HASH',
+                'value': req.body.hash
+              },
+              {
+                'name': 'STAGING_ENVIRONMENT',
+                'value': item.host
+              }
+            ]
+          }
+          console.log "Sending to Jenkins:"
+          console.log data_body
+
+          jenkins_info = {
+            method: 'POST',
+            host: 'jenkins.bos.dataxu.net',
+            path: '/job/staging-deploy_user-interface_hash/build?token=triggermetimbers'
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Content-Length': post_body.length
+            }
+          }
+
+          post_callback = (response) ->
+            str = ''
+            response.on 'data', (chunk) ->
+              str += chunk;
+
+            response.on 'end', () ->
+              console.log "Response from jenkins ended:"
+              console.log str
+              col_environments.save item, () ->
+                res.send {"success": true}
+
+          console.log "Update saved, requesting to jenkins"
+          console.log jenkins_info
+          console.log post_body
+          req = http.request jenkins_info, post_callback
+          req.write post_body
+          req.end()
+
     else
       console.log "dang"
 
