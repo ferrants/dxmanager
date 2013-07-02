@@ -19,6 +19,7 @@ class Jenkins
       persistence.lookup_environment environment_name, (env) ->
         console.log env
         env.busy = true
+        env.hash = params.hash
         persistence.save_environment(env)
 
         data_body = {

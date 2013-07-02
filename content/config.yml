@@ -21,7 +21,7 @@ plugins:
     params:
       host: "jenkins.bos.dataxu.net"
     deploy:
-      matcher: "stg(1|2)"
+      matcher: "stg*"
       input:
         name: hash
         placeholder: "Git Commit"
@@ -29,3 +29,6 @@ plugins:
       hook:
         file: jenkins
         method: deploy_ui
+      display_values:
+        - name: hash
+          display_name: Version

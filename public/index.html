@@ -26,13 +26,11 @@
       <div id="environment-wrapper" ng-controller="EnvironmentCtrl">
         <div class='env env-standing {{environment.class}}' ng-class="{busy:is_busy(environment.name), open:is_open(environment.name), taken:!is_open(environment.name)}" ng-repeat="environment in environments">
           <div class='pull-right'>
-            <dl class="dl-horizontal">
-              <dt>Host</dt>
-              <dd>{{environment.host}}</dd>
-              <dt>Holder</dt>
-              <dd>{{environment.holder || "None"}}</dd>
-<!--               <dt>Version</dt>
-              <dd>{{environment.version}}</dd> -->
+            <dl class="dl-horizontal" ng-init="display_values=display_values(environment.name)">
+              <span ng-repeat='param in display_values'>
+                <dt>{{ param.name }}</dt>
+                <dd>{{ param.val }}</dd>
+            </span>
             </dl>
           </div>
           <h3>{{environment.label}}</h3>

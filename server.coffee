@@ -35,7 +35,13 @@ setup_server = () ->
       if err
         res.send {"error": "Error loading environments"}
       else
-        plugins = {'jenkins': {'deploy': config.plugins.jenkins.deploy}}
+        plugins = {}
+        for plugin_name, plugin of config.plugins
+          for hook_type in ['deploy', 'display_values']
+            if hook_type of plugin
+              if plugin_name not of plugins
+                plugins[plugin_name] = {}
+              plugins[plugin_name][hook_type] = plugin[hook_type]
         res.send {"environments": environments, 'plugins': plugins}
 
 

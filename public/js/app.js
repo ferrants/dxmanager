@@ -162,4 +162,18 @@ function EnvironmentCtrl($scope, $http, Properties){
     }
   };
 
+  $scope.display_values = function(name){
+    var env = $scope.environment_map[name];
+    var blob = [
+      {name: "Host", val: env.host },
+      {name: "Holder", val: env.holder || "None"}
+    ];
+    if ('deploy' in env && 'display_values' in env.deploy){
+      for (var i in env.deploy.display_values){
+        blob.push({name: env.deploy.display_values[i].display_name, val: env[env.deploy.display_values[i].name] || "None"});
+      }
+    }
+    return blob;
+  };
+
 }
