@@ -37,10 +37,13 @@
           </div>
           <h3>{{environment.label}}</h3>
           <form class='form-inline'>
-            <div class='input-append'>
-              <!-- <input type='text' ng-model="environment.hash" placeholder='Git Hash'> -->
-              <button class='btn' ng-click="deploy(environment.name)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">Take</button>
-            </div>
+            <span ng-switch on="deploy_type(environment.name)">
+              <div ng-switch-when="text" class='input-append'>
+                <input type='text' ng-model="environment.deploy_value" placeholder='{{ environment.deploy.input.placeholder }}'>
+                <button class='btn' ng-click="deploy(environment.name, environment.deploy_value)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">{{ environment.deploy.input.button_text }}</button>
+              </div>
+              <button ng-switch-default class='btn' ng-click="deploy(environment.name)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">Deploy</button>
+            </span>
             <button class='btn' ng-click="relinquish(environment.name)" ng-class="{true:'', false:'disabled'}[can_relinquish(environment.name)]">Relinquish</button>
           </form>
         </div>

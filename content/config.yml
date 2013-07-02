@@ -16,3 +16,13 @@ environments:
   - label: UI Staging 4
     name: stg4
     host: stg-ui-app04
+plugins:
+  jenkins:
+    params:
+      host: "jenkins.bos.dataxu.net"
+    deploy:
+      matcher: "stg(1|2)"
+      input:
+        name: hash
+        placeholder: "Git Commit"
+        button_text: "Deploy"

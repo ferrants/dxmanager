@@ -29,13 +29,14 @@ setup_server = () ->
   app.use app.router
   app.use express.static(__dirname + '/public')
 
-  app.get '/api/environments', (req, res) ->
+  app.get '/api/config', (req, res) ->
     console.log "-- Environments"
     persistence.get_environments (err, environments) ->
       if err
         res.send {"error": "Error loading environments"}
       else
-        res.send {"environments": environments}
+        plugins = {'jenkins': {'deploy': config.plugins.jenkins.deploy}}
+        res.send {"environments": environments, 'plugins': plugins}
 
 
   app.post '/api/deploy', (req, res) ->
