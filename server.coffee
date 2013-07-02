@@ -50,6 +50,17 @@ setup_server = () ->
           if err
             res.send {"error": err}
           else
+            for plugin_name, plugin of config.plugins
+              if 'deploy' of plugin and 'hook' of plugin.deploy
+                matcher = matcher = new RegExp(plugin.deploy.matcher)
+                if environment_name.search(matcher) != -1
+                  console.log "Deploy to #{environment_name} being picked up by #{plugin_name}"
+                  console.log plugin
+                  Plugin = require "./content/plugins/#{plugin.deploy.hook.file}"
+                  p = new Plugin plugin.params, persistence
+                  p[plugin.deploy.hook.method] environment_name, req.body, () ->
+                    console.log "Deploy to #{environment_name} call back from #{plugin_name}"
+
             res.send {"success": true}
       else
         res.send {"error": "Environment unavailable"}

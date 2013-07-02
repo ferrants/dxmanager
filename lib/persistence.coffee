@@ -46,6 +46,20 @@ class Persistence
     @col_environments.find({}, {sort: {'label': 1}, fields: return_fields}).toArray (err, docs) ->
       cb err, docs
 
+  lookup_environment: (environment_name, cb) ->
+    @col_environments.findOne {name: environment_name}, (err, item) ->
+      if err
+        console.log err
+        cb(false)
+      else
+        cb(item)
+
+  save_environment: (environment) ->
+    @col_environments.save environment, (err, data) ->
+      if err
+        console.log err
+      console.log data
+
   is_available: (name, user=false, cb) ->
     @col_environments.findOne {name: name}, (err, item) ->
       console.log item

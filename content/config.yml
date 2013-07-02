@@ -26,3 +26,6 @@ plugins:
         name: hash
         placeholder: "Git Commit"
         button_text: "Deploy"
+      hook:
+        file: jenkins
+        method: deploy_ui
