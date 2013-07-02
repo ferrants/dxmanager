@@ -58,8 +58,9 @@ setup_server = () ->
                   console.log plugin
                   Plugin = require "./content/plugins/#{plugin.deploy.hook.file}"
                   p = new Plugin plugin.params, persistence
-                  p[plugin.deploy.hook.method] environment_name, req.body, () ->
+                  p[plugin.deploy.hook.method] environment_name, req.body, (response) ->
                     console.log "Deploy to #{environment_name} call back from #{plugin_name}"
+                    console.log response
 
             res.send {"success": true}
       else

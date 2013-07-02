@@ -108,25 +108,36 @@ function EnvironmentCtrl($scope, $http, Properties){
   };
 
   $scope.deploy = function(name, value){
-    if ($scope.can_deploy(name)){
-      if (name){
-        var body = {
-          email: Properties.get('username'),
-          name: name
-        };
+    var error = false;
+    if (!name){
+      error = "Choose an environment to deploy to";
+    }
+    if (!$scope.can_deploy(name)){
+      error = "Can't deploy to environment";
+    }
 
-        if ('deploy' in $scope.environment_map[name]){
-          body[$scope.environment_map[name].deploy.input.name] = value;
-        }
+    var body = {
+      email: Properties.get('username'),
+      name: name
+    };
 
-        $http.post('/api/deploy', body).success(function(data) {
-          console.log(data);
-          $scope.refresh();
-        });
+    if ('deploy' in $scope.environment_map[name]){
+      if (value){
+        body[$scope.environment_map[name].deploy.input.name] = value;
       }else{
-        alert("Choose an environment to deploy to");
+        error = "Enter a value for " + $scope.environment_map[name].deploy.input.placeholder;
       }
     }
+
+    if (error){
+      alert(error);
+    }else{
+      $http.post('/api/deploy', body).success(function(data) {
+        console.log(data);
+        setTimeout($scope.refresh, 1000);
+      });
+    }
+
   };
 
   $scope.deploy_type = function(name){
