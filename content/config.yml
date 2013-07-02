@@ -32,3 +32,5 @@ plugins:
       display_values:
         - name: hash
           display_name: Version
+        - name: link
+          display_name: Deploy Info

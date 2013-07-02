@@ -43,7 +43,8 @@ class Jenkins
           console.log build
           if build.building == false
             env.busy = false
-            persistence.save_environment(env)
+          env.link = build.url
+          persistence.save_environment(env)
 
           cb( {"success": "job started", "build": build} )
     else

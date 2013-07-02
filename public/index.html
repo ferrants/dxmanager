@@ -29,7 +29,10 @@
             <dl class="dl-horizontal" ng-init="display_values=display_values(environment.name)">
               <span ng-repeat='param in display_values'>
                 <dt>{{ param.name }}</dt>
-                <dd>{{ param.val }}</dd>
+                <dd ng-switch on="val_type(param.val)">
+                  <span ng-switch-when="link"><a target='_blank' href='{{ param.val }}'>Here</a></span>
+                  <span ng-switch-default="text">{{ param.val }}</span>
+                </dd>
             </span>
             </dl>
           </div>

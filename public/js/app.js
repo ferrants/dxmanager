@@ -57,7 +57,7 @@ function AuthCtrl($scope, $cookies, Properties){
   $scope.log_out = function(){
     Properties.set('logged_in', false);
     Properties.set('username', "None");
-    $cookies.username = false;
+    $cookies.username = "";
   };
 }
 
@@ -112,30 +112,28 @@ function EnvironmentCtrl($scope, $http, Properties){
     if (!name){
       error = "Choose an environment to deploy to";
     }
-    if (!$scope.can_deploy(name)){
-      error = "Can't deploy to environment";
-    }
+    if ($scope.can_deploy(name)){
+      var body = {
+        email: Properties.get('username'),
+        name: name
+      };
 
-    var body = {
-      email: Properties.get('username'),
-      name: name
-    };
-
-    if ('deploy' in $scope.environment_map[name]){
-      if (value){
-        body[$scope.environment_map[name].deploy.input.name] = value;
-      }else{
-        error = "Enter a value for " + $scope.environment_map[name].deploy.input.placeholder;
+      if ('deploy' in $scope.environment_map[name]){
+        if (value){
+          body[$scope.environment_map[name].deploy.input.name] = value;
+        }else{
+          error = "Enter a value for " + $scope.environment_map[name].deploy.input.placeholder;
+        }
       }
-    }
 
-    if (error){
-      alert(error);
-    }else{
-      $http.post('/api/deploy', body).success(function(data) {
-        console.log(data);
-        setTimeout($scope.refresh, 1000);
-      });
+      if (error){
+        alert(error);
+      }else{
+        $http.post('/api/deploy', body).success(function(data) {
+          console.log(data);
+          setTimeout($scope.refresh, 1000);
+        });
+      }
     }
 
   };
@@ -170,10 +168,20 @@ function EnvironmentCtrl($scope, $http, Properties){
     ];
     if ('deploy' in env && 'display_values' in env.deploy){
       for (var i in env.deploy.display_values){
-        blob.push({name: env.deploy.display_values[i].display_name, val: env[env.deploy.display_values[i].name] || "None"});
+        var param_name = env.deploy.display_values[i].display_name;
+        var param_val = env[env.deploy.display_values[i].name];
+        if (param_val){
+          blob.push({name: param_name, val: param_val });
+        }
       }
     }
     return blob;
   };
 
+  $scope.val_type = function(val){
+    if (val.indexOf('http://') != -1){
+      return 'link';
+    }
+    return 'text';
+  };
 }
