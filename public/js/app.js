@@ -70,7 +70,7 @@ function EnvironmentCtrl($scope, $http, Properties){
   };
 
   $scope.refresh = function(){
-    $http.get('/api/config').success(function(data) {
+    $http.get('/api/environments').success(function(data) {
       $scope.environments = data.environments;
       set_env_map();
     });
@@ -93,12 +93,12 @@ function EnvironmentCtrl($scope, $http, Properties){
     return Properties.get('logged_in') && $scope.environment_map[name].holder == Properties.get('username') && !$scope.is_open(name);
   };
 
-  $scope.deploy = function(name, hash){
+  $scope.deploy = function(name){
     if ($scope.can_deploy(name)){
-      if (name && hash){
+      if (name){
         var body = {
           email: Properties.get('username'),
-          hash: hash,
+          // hash: hash,
           name: name
         };
         $scope.environment_map[name].busy = true;
@@ -107,7 +107,7 @@ function EnvironmentCtrl($scope, $http, Properties){
           $scope.refresh();
         });
       }else{
-        alert("Enter a hash to deploy");
+        alert("Choose an environment to take");
       }
     }
   };

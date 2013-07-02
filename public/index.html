@@ -22,7 +22,7 @@
     </div>
 
     <div class="container">
-      <h1>User Interface</h1>
+      <h1>Instances</h1>
       <div id="environment-wrapper" ng-controller="EnvironmentCtrl">
         <div class='env env-standing {{environment.class}}' ng-class="{busy:is_busy(environment.name), open:is_open(environment.name), taken:!is_open(environment.name)}" ng-repeat="environment in environments">
           <div class='pull-right'>
@@ -31,15 +31,15 @@
               <dd>{{environment.host}}</dd>
               <dt>Holder</dt>
               <dd>{{environment.holder || "None"}}</dd>
-              <dt>Version</dt>
-              <dd>{{environment.version}}</dd>
+<!--               <dt>Version</dt>
+              <dd>{{environment.version}}</dd> -->
             </dl>
           </div>
           <h3>{{environment.label}}</h3>
           <form class='form-inline'>
             <div class='input-append'>
-              <input type='text' ng-model="environment.hash" placeholder='Git Hash'>
-              <button class='btn' ng-click="deploy(environment.name, environment.hash)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">Deploy</button>
+              <!-- <input type='text' ng-model="environment.hash" placeholder='Git Hash'> -->
+              <button class='btn' ng-click="deploy(environment.name)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">Take</button>
             </div>
             <button class='btn' ng-click="relinquish(environment.name)" ng-class="{true:'', false:'disabled'}[can_relinquish(environment.name)]">Relinquish</button>
           </form>
