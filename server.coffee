@@ -51,7 +51,7 @@ setup_server = () ->
     environment_name = req.body.name
     user = req.body.email
     persistence.is_available environment_name, user, (open) ->
-      if open      
+      if open
         persistence.lock_environment environment_name, user, (err, data) ->
           if err
             res.send {"error": err}
@@ -82,7 +82,8 @@ setup_server = () ->
       else
         res.send {"success": true}
 
-  app.listen 8080
-  console.log "Listening on port 8080"
+  port = process.env.DXMANAGER_PORT || 8080
+  app.listen port
+  console.log "Listening on port #{port}"
 
 db_connect setup_server
