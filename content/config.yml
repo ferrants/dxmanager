@@ -16,7 +16,7 @@ environments:
   - label: UI Staging 4
     name: stg4
     host: stg-ui-app04
-  - label: UI Cluster 5 and 6
+  - label: UI Staging Cluster 5 and 6
     name: stg-cluster
     host: stage_user_interface_cluster
 plugins:
