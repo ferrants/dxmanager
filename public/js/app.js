@@ -92,11 +92,11 @@ function EnvironmentCtrl($scope, $http, Properties){
   $scope.refresh();
 
   $scope.is_open = function(name){
-    return (name in $scope.environment_map && !('holder' in $scope.environment_map[name]));
+    return (name in $scope.environment_map && ($scope.environment_map[name].holder == Properties.get('username') || !('holder' in $scope.environment_map[name])));
   };
 
   $scope.can_deploy = function(name){
-    return Properties.get('logged_in') && $scope.is_open(name);
+    return Properties.get('logged_in') && $scope.is_open(name) && !$scope.is_busy(name);
   };
 
   $scope.is_busy = function(name){
@@ -104,7 +104,7 @@ function EnvironmentCtrl($scope, $http, Properties){
   };
 
   $scope.can_relinquish = function(name){
-    return Properties.get('logged_in') && $scope.environment_map[name].holder == Properties.get('username') && !$scope.is_open(name);
+    return Properties.get('logged_in') && $scope.environment_map[name].holder == Properties.get('username');
   };
 
   $scope.deploy = function(name, value){
