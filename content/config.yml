@@ -23,6 +23,7 @@ plugins:
   jenkins:
     params:
       host: "jenkins.bos.dataxu.net"
+      job_name: "staging-deploy_user-interface_hash"
     deploy:
       matcher: "stg*"
       input:

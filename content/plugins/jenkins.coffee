@@ -4,6 +4,7 @@ urlencode = require 'urlencode'
 class Jenkins
   constructor: (params, persistence) ->
     @host = params.host
+    @job_name = params.job_name
     @persistence = persistence
 
   deploy_ui: (environment_name, params, cb=()->) ->
@@ -34,9 +35,8 @@ class Jenkins
             }
           ]
         }
-        job_name = 'staging-deploy_user-interface_hash'
-        jenkins.start_job job_name, data_body, (build) ->
-          console.log "Started Job #{job_name}"
+        jenkins.start_job data_body, (build) ->
+          console.log "Started Job #{jenkins.job_name}"
 
           # jenkins.get_build job_name, build.number, (build) ->
 
@@ -50,7 +50,7 @@ class Jenkins
     else
       cb {"error": "no git hash provided"}
 
-  start_job: (job_name, post_data, cb) ->
+  start_job: (post_data, cb) ->
       jenkins = @
       console.log "Sending to Jenkins:"
       console.log post_data
@@ -60,12 +60,20 @@ class Jenkins
       jenkins_info = {
         method: 'POST',
         host: @host,
-        path: "/job/#{job_name}/build?token=triggermetimbers"
+        path: "/job/#{jenkins.job_name}/build?token=triggermetimbers"
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Content-Length': post_body.length
         }
       }
+
+      last_build = false
+      get_started_build = (cb) ->
+        jenkins.get_last_build (build) ->
+          if build.url == last_build.url
+            get_started_build cb
+          else
+            cb(build)
 
       post_callback = (response) ->
         str = ''
@@ -76,25 +84,27 @@ class Jenkins
         response.on 'end', () ->
           console.log "Response from jenkins post ended:"
           console.log str
-          jenkins.get_last_build job_name, (build) ->
-            cb(build)
+          get_started_build cb
 
       console.log jenkins_info
       console.log post_body
-      req = http.request jenkins_info, post_callback
-      req.write post_body
-      req.end()
 
-    get_last_build: (job_name, cb) ->
-      @get_builds job_name, (builds) ->
+      jenkins.get_last_build (build) ->
+        last_build = build
+        req = http.request jenkins_info, post_callback
+        req.write post_body
+        req.end()
+
+    get_last_build: (cb) ->
+      @get_builds (builds) ->
         if builds.length > 0
           cb builds[0]
         else
           cb()
 
-    get_builds: (job_name, cb) ->
-      console.log "Looking up builds for job #{job_name}"
-      path = "/job/#{job_name}/api/json?tree=builds[number,timestamp,id,result,url,description,fullDisplayName,building]"
+    get_builds: (cb) ->
+      console.log "Looking up builds for job #{@job_name}"
+      path = "/job/#{@job_name}/api/json?tree=builds[number,timestamp,id,result,url,description,fullDisplayName,building]"
       console.log "#{@host}#{path}"
       jenkins_info = {
         method: 'GET',
@@ -109,6 +119,7 @@ class Jenkins
 
         response.on 'end', () ->
           console.log "Response from jenkins query ended:"
+          console.log s
           response_json = JSON.parse(s)
           # console.log response_json
           cb(response_json.builds)
@@ -116,9 +127,9 @@ class Jenkins
       req = http.request jenkins_info, get_callback
       req.end()
 
-    get_build: (job_name, build_number, cb) ->
-      console.log "Looking up build #{build_number} for job #{job_name}"
-      path = "/job/#{job_name}/builds/#{build_number}/api/json"
+    get_build: (build_number, cb) ->
+      console.log "Looking up build #{build_number} for job #{@job_name}"
+      path = "/job/#{@job_name}/builds/#{build_number}/api/json"
       console.log "#{@host}#{path}"
       jenkins_info = {
         method: 'GET',
