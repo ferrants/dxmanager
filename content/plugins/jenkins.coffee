@@ -5,6 +5,7 @@ class Jenkins
   constructor: (params, persistence) ->
     @host = params.host
     @job_name = params.job_name
+    @recheck_seconds = if params.recheck_seconds? then params.recheck_seconds else 30
     @persistence = persistence
 
   deploy_ui: (environment_name, params, cb=()->) ->
@@ -38,11 +39,20 @@ class Jenkins
         jenkins.start_job data_body, (build) ->
           console.log "Started Job #{jenkins.job_name}"
 
-          # jenkins.get_build job_name, build.number, (build) ->
-
           console.log build
           if build.building == false
             env.busy = false
+          else
+            recheck_interval = false
+            recheck_build_status = () ->
+              jenkins.get_build build.number, (build) ->
+                if build.building == false
+                  clearInterval recheck_interval
+                  env.busy = false
+                  persistence.save_environment(env)
+
+            recheck_interval = setInterval(recheck_build_status, jenkins.recheck_seconds * 1000)
+
           env.link = build.url
           persistence.save_environment(env)
 
@@ -129,7 +139,7 @@ class Jenkins
 
     get_build: (build_number, cb) ->
       console.log "Looking up build #{build_number} for job #{@job_name}"
-      path = "/job/#{@job_name}/builds/#{build_number}/api/json"
+      path = "/job/#{@job_name}/#{build_number}/api/json"
       console.log "#{@host}#{path}"
       jenkins_info = {
         method: 'GET',
