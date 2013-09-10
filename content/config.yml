@@ -16,12 +16,9 @@ environments:
   - label: UI Staging 4
     name: stg4
     host: stg-ui-app04
-  - label: UI Staging 5
-    name: stg5
-    host: stg-ui-app05
-  - label: UI Staging 6
-    name: stg6
-    host: stg-ui-app06
+  - label: UI Cluster 5 and 6
+    name: stg-cluster
+    host: stage_user_interface_cluster
 plugins:
   jenkins:
     params:
