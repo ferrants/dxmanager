@@ -29,6 +29,9 @@ class Persistence
       else
         for doc in docs
           changed = false
+          if doc.busy == true
+            doc.busy = false
+            changed = true
           for param of env
             if doc[param] != env[param]
               changed = true
