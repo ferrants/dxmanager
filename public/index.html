@@ -33,7 +33,7 @@
                   <span ng-switch-when="link"><a target='_blank' href='{{ param.val }}'>Here</a></span>
                   <span ng-switch-default="text">{{ param.val }}</span>
                 </dd>
-            </span>
+              </span>
             </dl>
           </div>
           <h3>{{environment.label}}</h3>
@@ -68,6 +68,9 @@
         <h3 id="login_label">Log In</h3>
       </div>
       <div class="modal-body">
+        <div class="alert alert-error" ng-repeat='error in get_errors()'>
+          <strong>Error:</strong> {{ error }}
+        </div>
         <form class="form-horizontal" id='form_login' ng-submit="log_in()">
           <div class="control-group">
             <label class="control-label" for="login_email">Email</label>

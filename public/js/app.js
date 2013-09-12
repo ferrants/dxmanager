@@ -1,13 +1,7 @@
-(function($){
-  $(document).ready(function(){
-
-      $('#form_login').submit(function(){
-        $('#login_modal').modal('hide');
-      });
-
-  });
-})(jQuery);
-
+var email_regex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+function validate_email(email) {
+  return email_regex.test(email);
+}
 
 var dxmanager = angular.module('dxmanager', ['ngCookies']);
 dxmanager.factory('Properties', function(){
@@ -48,10 +42,16 @@ function AuthCtrl($scope, $cookies, Properties){
   };
 
   $scope.log_in = function(){
-    console.log("Logging in: " + $scope.login_email);
-    Properties.set('logged_in', true);
-    Properties.set('username', $scope.login_email);
-    $cookies.username = $scope.login_email;
+    console.log("Attempting log in for: " + $scope.login_email);
+    if (validate_email($scope.login_email)){
+      $scope.errors = [];
+      Properties.set('logged_in', true);
+      Properties.set('username', $scope.login_email);
+      $cookies.username = $scope.login_email;
+      $('#login_modal').modal('hide');
+    }else{
+      $scope.errors = ["Please use Valid Email"]
+    }
   };
 
   $scope.log_out = function(){
@@ -59,6 +59,10 @@ function AuthCtrl($scope, $cookies, Properties){
     Properties.set('username', "None");
     $cookies.username = "";
   };
+
+  $scope.get_errors = function(){
+    return $scope.errors;
+  }
 }
 
 function EnvironmentCtrl($scope, $http, Properties){
