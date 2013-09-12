@@ -76,7 +76,8 @@ setup_server = () ->
     console.log "-- Relinquish"
     console.log req.body
     environment_name = req.body.name
-    persistence.unlock_environment environment_name, (err, data) ->
+    user = req.body.email
+    persistence.unlock_environment environment_name, user, (err, data) ->
       if err
         res.send {'err': err}
       else

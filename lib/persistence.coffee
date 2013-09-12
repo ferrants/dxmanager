@@ -78,19 +78,27 @@ class Persistence
     persistence.col_environments.findOne {name: name}, (err, item) ->
       if err
         cb {'err': err}
+      else if 'holder' of item and item.holder != user
+          cb {'err': "environment belongs to #{item.holder}"}
       else
         item.holder = user
         persistence.col_environments.save item, (err, data) ->
             cb err, data
 
-  unlock_environment: (name, cb) ->
+  unlock_environment: (name, user, cb) ->
     persistence = @
     persistence.col_environments.findOne {name: name}, (err, item) ->
       if err
         cb {'err': err}
+      else if 'holder' of item
+        if item.holder != user
+         cb {'err': "environment belongs to #{item.holder}"}
+        else
+          delete item.holder
+          persistence.col_environments.save item, (err, data) ->
+              cb err, data
       else
-        delete item.holder
-        persistence.col_environments.save item, (err, data) ->
-            cb err, data
+        cb {'err': "environment not held"}
+
 
 module.exports = Persistence
