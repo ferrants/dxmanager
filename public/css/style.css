@@ -28,3 +28,6 @@
   animation: myfirst 1s infinite;
   -webkit-animation: myfirst 1s infinite; /* Safari and Chrome */
 }
+input.deploy-text{
+	width: 180px;
+}
