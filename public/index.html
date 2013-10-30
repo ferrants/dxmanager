@@ -22,8 +22,12 @@
     </div>
 
     <div class="container">
-      <h1>Instances</h1>
       <div id="environment-wrapper" ng-controller="EnvironmentCtrl">
+
+        <div class='pull-right'>
+          <a ng-click="refresh()" href='#'><i class='icon-refresh'></i>  Refresh</a>
+        </div>
+        <h1>Instances</h1>
         <div class='env env-standing {{environment.class}}' ng-class="{busy:is_busy(environment.name), open:is_open(environment.name), taken:!is_open(environment.name)}" ng-repeat="environment in environments">
           <div class='pull-right'>
             <dl class="dl-horizontal" ng-init="display_values=display_values(environment.name)">
