@@ -41,7 +41,15 @@
             <span ng-switch on="deploy_type(environment.name)">
               <div ng-switch-when="text" class='input-append'>
                 <input type='text' ng-model="environment.deploy_value" placeholder='{{ environment.deploy.input.placeholder }}'>
-                <button class='btn' ng-click="deploy(environment.name, environment.deploy_value)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">{{ environment.deploy.input.button_text }}</button>
+                <div class="btn-group">
+                  <button class='btn' ng-click="deploy(environment.name, environment.deploy_value)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">{{ environment.deploy.input.button_text }}</button>
+                  <button class="btn dropdown-toggle" data-toggle="dropdown" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">
+                    <span class="caret"></span>
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a href='#' ng-click="deploy(environment.name)">Claim</a></li>
+                  </ul>
+                </div>
               </div>
               <button ng-switch-default class='btn' ng-click="deploy(environment.name)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">Deploy</button>
             </span>

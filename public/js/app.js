@@ -125,8 +125,6 @@ function EnvironmentCtrl($scope, $http, Properties){
       if ('deploy' in $scope.environment_map[name]){
         if (value){
           body[$scope.environment_map[name].deploy.input.name] = value;
-        }else{
-          error = "Enter a value for " + $scope.environment_map[name].deploy.input.placeholder;
         }
       }
 
