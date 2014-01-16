@@ -42,11 +42,12 @@ plugins:
     params:
       host: "jenkins.bos.dataxu.net"
       job_name: "staging-deploy_user-interface_hash"
+      token: "triggermetimbers"
     deploy:
       matcher: "stg*"
       input:
         name: hash
-        placeholder: "Git Commit"
+        placeholder: "Git Hash or Branch"
         button_text: "Deploy"
       hook:
         file: jenkins

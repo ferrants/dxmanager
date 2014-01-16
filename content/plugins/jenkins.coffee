@@ -5,6 +5,7 @@ class Jenkins
   constructor: (params, persistence) ->
     @host = params.host
     @job_name = params.job_name
+    @token = params.token
     @recheck_seconds = if params.recheck_seconds? then params.recheck_seconds else 30
     @persistence = persistence
 
@@ -70,7 +71,7 @@ class Jenkins
       jenkins_info = {
         method: 'POST',
         host: @host,
-        path: "/job/#{jenkins.job_name}/build?token=triggermetimbers"
+        path: "/job/#{jenkins.job_name}/build?token=#{jenkins.token}"
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Content-Length': post_body.length
