@@ -1,106 +1,147 @@
 <!DOCTYPE html>
-<html ng-app='dxmanager'>
+<html ng-app='dxmanager' lang="en">
   <head>
-    <title>DX Instance Manager</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
-    <link href="css/style.css" rel="stylesheet" media="screen">
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js"></script>
-    <script src="http://code.angularjs.org/1.0.0rc10/angular-cookies-1.0.0rc10.js"></script>
+    <title>DXManager</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <link href="/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/css/style.css" rel="stylesheet" media="screen">
   </head>
   <body>
-    <div class="navbar navbar-static-top navbar-inverse">
-      <div class="navbar-inner">
-        <a class="brand" href="#">DXManager</a>
-        <ul ng-controller="AuthCtrl" class="nav pull-right">
-          <li ng-show="logged_in()"><a href="#" >{{auth()}}</a></li>
-          <li ng-show="!logged_in()"><a href="#login_modal" class='login' data-toggle="modal">Log In</a></li>
-          <li ng-show="logged_in()"><a href="#logout" class='logout' ng-click="log_out()">Logout</a></li>
-          <li><a href="#about_modal"data-toggle="modal">About</a></li>
-        </ul>
-      </div>
-    </div>
-
     <div class="container">
-      <div id="environment-wrapper" ng-controller="EnvironmentCtrl">
+      <div ng-controller="EnvironmentCtrl">
+        <button class='btn btn-default pull-right' ng-class="{'loading': active_requests > 0}" ng-click="update_data()" title='{{ active_requests }} active requests'>Refresh</button>
+        <h1>DXManager</h1>
 
-        <div class='pull-right'>
-          <a ng-click="refresh()" href='#'><i class='icon-refresh'></i>  Refresh</a>
-        </div>
-        <h1>Instances</h1>
-        <div class='env env-standing {{environment.class}}' ng-class="{busy:is_busy(environment.name), open:is_open(environment.name), taken:!is_open(environment.name)}" ng-repeat="environment in environments">
-          <div class='pull-right'>
-            <dl class="dl-horizontal" ng-init="display_values=display_values(environment.name)">
-              <span ng-repeat='param in display_values'>
-                <dt>{{ param.name }}</dt>
-                <dd ng-switch on="val_type(param.val)">
-                  <span ng-switch-when="link"><a target='_blank' href='{{ param.val }}'>Here</a></span>
-                  <span ng-switch-default="text">{{ param.val }}</span>
-                </dd>
-              </span>
-            </dl>
+        <div ng-init="refresh(); tab='environments'">
+
+          <div ng-class="{hide: errors.length < 1}">
+              <div ng-repeat="error in errors" class="alert alert-danger" role="alert"><span class='glyphicon glyphicon-warning-sign'></span>&nbsp;&nbsp;Error: {{ error }}</div>
           </div>
-          <h3>{{environment.label}}</h3>
-          <form class='form-inline'>
-            <span ng-switch on="deploy_type(environment.name)">
-              <div ng-switch-when="text" class='input-append'>
-                <input type='text' class='deploy-text' ng-model="environment.deploy_value" placeholder='{{ environment.deploy.input.placeholder }}'>
-                <div class="btn-group">
-                  <button class='btn' ng-click="deploy(environment.name, environment.deploy_value)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">{{ environment.deploy.input.button_text }}</button>
-                  <button class="btn dropdown-toggle" data-toggle="dropdown" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">
-                    <span class="caret"></span>
-                  </button>
-                  <ul class="dropdown-menu">
-                    <li><a href='#' ng-click="deploy(environment.name)">Claim</a></li>
-                  </ul>
+
+          <ul class="nav nav-pills">
+            <li ng-class="{active: tab == 'environments'}" ng-click="tab='environments'"><a href="#"><span class="badge pull-right">{{ app_data.environments.length }}</span>Environments&nbsp;&nbsp;</a></li>
+            <li ng-class="{active: tab == 'errors'}" ng-click="tab='errors'"><a href="#"><span class="badge pull-right">{{ app_data.errors.length }}</span>Server Errors&nbsp;&nbsp;</a></li>
+            <li ng-class="{active: tab == 'meta'}" ng-click="tab='meta'"><a href="#">Meta</a></li>
+          </ul>
+
+          <div ng-class="{hide: tab != 'environments'}">
+            <h3>Environments in AWS</h3>
+            <div ng-repeat="env in get_environments()" class='row env'>
+              <div class='col-md-5'>
+                <h3>{{ env.tags.name }}</h3>
+                <div class="progress">
+                  <div class="progress-bar" role="progressbar" aria-valuenow="{{ env.current_size }}" aria-valuemin="0" aria-valuemax="{{ env.max_size }}" style="width: {{ env.current_size * 100 / env.max_size }}%;">
+                    {{ env.current_size }} instance - {{ env.min_size }}min / {{ env.desired_size }} / {{ env.max_size }}max
+                  </div>
+                </div>
+                {{ env.tags.environment }}
+                <div ng-switch="env.tags.build_user">
+                  <div ng-switch-when="None Specified">No Deploy Information</div>
+                  <div ng-switch-default>{{ env.tags.build_user }} deployed from <a href='{{ env.tags.build_url }}'>{{ env.tags.build_url }}</a></div>
+                </div>
+                AWS: <a target='_blank' href='https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#AutoScalingGroups:id={{ env.name }}'>AutoScaling Group</a> - <a target='_blank' href='https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#LaunchConfigurations:id={{ env.launch_config_name }}'>Launch Configuration</a>
+              </div>
+              <div class='col-md-7'>
+                <h3>{{ env.ami_id }} ({{ env.ami_tags.node_type }})</h3>
+                GitHub: <a target='_blank' href='{{ env.ami_tags.git_url | remote2github }}'>{{ env.ami_tags.git_url | remote2name }}</a> - 
+                <a target='_blank' href='{{ env.ami_tags.git_url | remote2github }}/tree/{{ env.ami_tags.git_commit }}'>[{{ env.ami_tags.git_branch.replace('origin/', '') }}] {{ env.ami_tags.git_commit | short_hash }}</a>
+                <br/>AMI: <a target='_blank' href='{{ env.ami_tags.build_url }}'>{{ env.ami_tags.build_url.replace("http://jenkins.devaws.dataxu.net/job/", '') }}</a>
+                <br/><p>{{ env.ami_description }}</p>
+                <div class="input-group">
+                  <input type="text" class="form-control" placeholder="{{ env.ami_id }}">
+                  <span class="input-group-btn">
+                    <button class="btn btn-default" type="button">Clear</button>
+                    <button class="btn btn-default" type="button">Deploy</button>
+                    <button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">AMIs <span class="caret"></span></button>
+
+                    <ul class="dropdown-menu dropdown-menu-right" role="menu">
+                      <li class="dropdown-header">master</li>
+                      <li><a href="#">ami-1234</a></li>
+                      <li class="divider"></li>
+                      <li class="dropdown-header">rel-</li>
+                      <li><a href="#">ami-2345</a></li>
+                      <li class="divider"></li>
+                      <li class="dropdown-header">dev-</li>
+                      <li><a href="#">ami-3456</a></li>
+                    </ul>
+                  </span>
                 </div>
               </div>
-              <button ng-switch-default class='btn' ng-click="deploy(environment.name)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">Deploy</button>
-            </span>
-            <button class='btn' ng-click="relinquish(environment.name)" ng-class="{true:'', false:'disabled'}[can_relinquish(environment.name)]">Relinquish</button>
-          </form>
+
+<!--               <div class='col-md-12'>
+                <dl class="dl-horizontal">
+                  <dt>AutoScaling Group</dt>
+                  <dd><a target='_blank' href='https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#AutoScalingGroups:id={{ env.name }}'>{{ env.name }}</a></dd>
+                  <dt>Launch Configuration</dt>
+                  <dd><a target='_blank' href='
+                    https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#LaunchConfigurations:id={{ env.launch_config_name }}'>{{ env.launch_config_name }}</a></dd>
+                  <span ng-repeat='(k,v) in env.tags'>
+                    <dt>{{ k }}</dt>
+                    <dd>{{ v }}</dd>
+                  </span>
+                  <span ng-repeat='(k,v) in env.ami_tags'>
+                    <dt>{{ k }}</dt>
+                    <dd>{{ v }}</dd>
+                  </span>
+                </dl>
+              </div> -->
+
+            </div>
+
+              
+              
+<!--                     <form class='form-inline'>
+                <span ng-switch on="deploy_type(environment.name)">
+                  <div ng-switch-when="text" class='input-append'>
+                    <input type='text' class='deploy-text' ng-model="environment.deploy_value" placeholder='{{ environment.deploy.input.placeholder }}'>
+                    <div class="btn-group">
+                      <button class='btn' ng-click="deploy(environment.name, environment.deploy_value)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">{{ environment.deploy.input.button_text }}</button>
+                      <button class="btn dropdown-toggle" data-toggle="dropdown" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">
+                        <span class="caret"></span>
+                      </button>
+                      <ul class="dropdown-menu">
+                        <li><a href='#' ng-click="deploy(environment.name)">Claim</a></li>
+                      </ul>
+                     </div>
+                  </div>
+                  <button ng-switch-default class='btn' ng-click="deploy(environment.name)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">Deploy</button>
+                </span>
+                <button class='btn' ng-click="relinquish(environment.name)" ng-class="{true:'', false:'disabled'}[can_relinquish(environment.name)]">Relinquish</button>
+              </form> -->
+          </div>
+
+          <div ng-class="{hide: tab != 'errors'}">
+              <table class="table">
+                  <thead>
+                      <tr>
+                        <th class='col-md-2'>Time</th>
+                        <th class='col-md-3'>Where</th>
+                        <th class='col-md-3'>Message</th>
+                      </tr>
+                  </thead>
+                  <tr ng-repeat="elem in app_data.errors">
+                      <td>{{ elem.time |fromNow }}</td>
+                      <td>{{ elem.where }}</td>
+                      <td>{{ elem.msg }}</td>
+                  </tr>
+              </table>
+          </div>
+          <pre ng-class="{hide: tab != 'meta'}">{{ get_data() }}</pre>
+          <h3>Todo:</h3>
+          <ul>
+            <li>Tags</li>
+            <li>AMI lookup</li>
+            <li>Authentication with LDAP</li>
+            <li>Deploy</li>
         </div>
       </div>
     </div>
 
-    <div id="about_modal" class="modal hide fade" role="dialog" aria-labelledby="about_label" aria-hidden="true">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-        <h3 id="about_label">DataXu Instance Manager</h3>
-      </div>
-      <div class="modal-body">
-        <p>Manage the UI Staging Instances</p>
-        <p>For <a href='http://www.dataxu.com'>DataXu</a> by <a href='http://github.dataxu.net/mferrante' target='_blank'>Matt Ferrante</a>. <a href='http://github.dataxu.net/mferrante/dxmanager'>See source here.</a></p>
-      </div>
-    </div>
-
-    <div id="login_modal" ng-controller="AuthCtrl" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="login_label" aria-hidden="true">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-        <h3 id="login_label">Log In</h3>
-      </div>
-      <div class="modal-body">
-        <div class="alert alert-error" ng-repeat='error in get_errors()'>
-          <strong>Error:</strong> {{ error }}
-        </div>
-        <form class="form-horizontal" id='form_login' ng-submit="log_in()">
-          <div class="control-group">
-            <label class="control-label" for="login_email">Email</label>
-            <div class="controls">
-              <input type="text" id="login_email" ng-model="login_email" placeholder="Email">
-            </div>
-          </div>
-          <div class="control-group">
-            <div class="controls">
-              <button type="submit" class="btn">Sign in</button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <script src="http://code.jquery.com/jquery.js"></script>
-    <script src="js/bootstrap.min.js"></script>
-    <script src="js/app.js"></script>
+    <script src="/lib/jquery/dist/jquery.min.js"></script>
+    <script src="/lib/momentjs/moment.js"></script>
+    <script src="/lib/bootstrap/dist/js/bootstrap.min.js"></script>
+    <script src="/lib/angular/angular.min.js"></script>
+    <script src="/lib/angular-cookies/angular-cookies.min.js"></script>
+    <script src="/js/app.js"></script>
   </body>
 </html>

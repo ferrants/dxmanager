@@ -1,8 +1,14 @@
 .env {
-  border: 1px solid #dddddd;
-  padding: 0 20px;
-  border-radius: 3px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  border: 1px solid #f0f0f0;
   margin-bottom: 5px;
+}
+.env h3{
+    margin-top: 10px;
+}
+.env:hover {
+  background: #fafafa;
 }
 .env.open{
   background: #e5ffe5;
@@ -23,7 +29,7 @@
 50% {background: #eeeeff;}
 100% {background: white;}
 }
-.env.busy{
+.env.busy, .loading{
   /*background: #eeeeff;*/
   animation: myfirst 1s infinite;
   -webkit-animation: myfirst 1s infinite; /* Safari and Chrome */
