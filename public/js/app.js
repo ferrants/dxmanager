@@ -1,4 +1,4 @@
-var dxmanager = angular.module('dxmanager', []);
+var dxmanager = angular.module('dxmanager', ['LocalStorageModule']);
 
 dxmanager.filter('fromNow', function() {
   return function(date) {
@@ -23,7 +23,7 @@ dxmanager.filter('remote2name', function(){
   }
 });
 
-dxmanager.controller('EnvironmentCtrl', function($scope, $http){
+dxmanager.controller('EnvironmentCtrl', function($scope, $http, localStorageService){
   $scope.app_data = {
     status: 'running'
   };
@@ -33,6 +33,39 @@ dxmanager.controller('EnvironmentCtrl', function($scope, $http){
   $scope.filters = [];
   $scope.enabled_filters = [];
   $scope.filter_exclusively = true;
+
+  $scope.auth = false;
+  $scope.login_form = {
+    username: '',
+    api_token: ''
+  };
+
+  $scope.load_auth = function(){
+    if (localStorageService.get('username') && localStorageService.get('api_token')){
+      $scope.auth = $scope.login_form = {
+        'username': localStorageService.get('username'),
+        'api_token': localStorageService.get('api_token')
+      };
+    }
+  };
+
+  $scope.log_in = function(){
+    $http.post('/auth', $scope.login_form).success(function(data) {
+      if (data.status == 'success'){
+        $scope.auth = $scope.login_form;
+        localStorageService.set('username', $scope.auth.username);
+        localStorageService.set('api_token', $scope.auth.api_token);
+        $scope.errors = [];
+      }else{
+        $scope.errors = [data.error];
+      }
+    });
+  };
+
+  $scope.log_out = function(){
+    $scope.auth = false;
+    localStorageService.clearAll();
+  };
 
   $scope.get_data = function(){
     return $scope.environments;
@@ -121,6 +154,34 @@ dxmanager.controller('EnvironmentCtrl', function($scope, $http){
         $scope.errors = [data.error];
       }
     });
+  };
+
+  $scope.deploy = function(env, ami){
+    console.log(env);
+    console.log(ami);
+    if (!(ami)){
+      $scope.errors = ["Need to specify an AMI"]
+    }else if (env.tags.build_url.indexOf('http://jenkins.devaws') != 0){
+      $scope.errors = ["Can't deploy to environment in unknown state, no old deploy job"]
+    }else if (ami.indexOf('ami-') != 0){
+      $scope.errors = ["AMI looks wrong"]
+    }else if (ami == env.ami_id){
+      $scope.errors = ["Same AMI, not running deploy"]
+    }else{
+      $scope.errors = []
+      $http.post('/deploy', {
+        username: $scope.auth.username,
+        api_token: $scope.auth.api_token,
+        build_url: env.tags.build_url,
+        ami_id: ami
+      }).success(function(data) {
+        if (data.status == 'success'){
+          console.log(data);
+        }else{
+          $scope.errors = [data.error];
+        }
+      });
+    }
   };
 
 });

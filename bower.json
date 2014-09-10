@@ -17,7 +17,7 @@
   "dependencies": {
     "bootstrap": "~3.0.0",
     "angular": "",
-    "angular-cookies": "",
+    "angular-local-storage": "",
     "jquery": "",
     "momentjs": "~2.5.1"
   }

@@ -30,6 +30,7 @@ app = Flask(__name__, static_url_path='', static_folder='public/')
 # Load default config and override config from an environment variable
 app.config.update(dict(
     JENKINS_URL='http://jenkins.devaws.dataxu.net',
+    # JENKINS_URL='http://jenkins-staging.devaws.dataxu.net',
     JENKINS_USER='admin_user',
     JENKINS_USER_TOKEN='changeme',
     MONGO_DB_HOST='localhost',
@@ -40,15 +41,10 @@ app.config.update(dict(
     TEST=False
 ))
 
-jenkins_instance = Jenkins(app.config['JENKINS_URL'],
-    app.config['JENKINS_USER'],
-    app.config['JENKINS_USER_TOKEN'])
-
 client = MongoClient(app.config['MONGO_DB_HOST'], app.config['MONGO_DB_PORT'])
 db = client[app.config['MONGO_DB_NAME']]
 
 environments_coll = db.events
-error_coll = db.errors
 
 running_status = 'running'
 
@@ -135,25 +131,89 @@ def test():
     data = {}
     if request.data:
         data = simplejson.loads(request.data)
-    return (jsonify(state='done', msg='test success', data=data), 200)
+    return (jsonify(status='done', msg='test success', data=data), 200)
 
-@app.route('/trigger', methods = ['GET', 'POST'])
-def trigger():
+
+@app.route('/auth', methods = ['POST'])
+def auth():
     return_data = {}
-    state = 'done'
+    state = 'success'
     msg = "nothing done"
     try:
         if request.method == 'POST':
             json = request.data
             if isinstance(json, basestring):
                 json = simplejson.loads(json)
+
+            jenkins_instance = Jenkins(app.config['JENKINS_URL'],
+                json['username'],
+                json['api_token'])
+            jobs = jenkins_instance.get_jobs();
+        print "Authentication Succeeded"
+        return (jsonify(status=state, msg="correct credentials", **return_data), 200)
+    except Exception as e:
+        print "Authentication Failed"
+        print e
+        return (jsonify(status='error', error="credentials are wrong for {0}".format(app.config['JENKINS_URL'])), 200)
+
+
+@app.route('/deploy', methods = ['POST'])
+def trigger():
+    return_data = {}
+    state = 'success'
+    msg = "nothing done"
+    try:
+        if request.method == 'POST':
+            state='error'
+            return_data['error'] = 'not implemented'
+            json = request.data
+            if isinstance(json, basestring):
+                json = simplejson.loads(json)
             print json
 
-        return (jsonify(state=state, msg=msg, **return_data), 200)
+            jenkins_instance = Jenkins(app.config['JENKINS_URL'],
+                json['username'],
+                json['api_token'])
+
+            job_search = re.search('job/([a-zA-Z\-_]+)/([0-9]+)', json['build_url'])
+            if job_search:
+                job_name = job_search.group(1)
+                build_number = int(job_search.group(2))
+                return_data['job_name'] = job_name
+                return_data['build_number'] = build_number
+
+                build_info = jenkins_instance.get_build_info(job_name, build_number)
+                parameter_action = False
+                for action in build_info['actions']:
+                    if 'parameters' in action:
+                        parameter_action = action
+                if not parameter_action:
+                    state = 'error'
+                    return_data['error'] = 'no job parameters?'
+                else:
+                    parameters = {}
+                    for param in parameter_action['parameters']:
+                        parameters[param['name']] = param['value']
+                    print parameters
+                    if 'ami_id' not in parameters:
+                        state = 'error'
+                        return_data['error'] = "no ami_id parameter for last job, can't run"
+                    else:
+                        print "Happy Path"
+                        parameters['ami_id'] = json['ami_id']
+                        return_data['parameters'] = parameters
+                        msg = "Would trigger {0} on {1} with {2}".format(job_name, app.config['JENKINS_URL'], parameters)
+                        return_data['error'] = msg
+
+            else:
+                state = 'error'
+                return_data['error'] = 'malformed build url'
+
+        print return_data
+        return (jsonify(status=state, msg=msg, **return_data), 200)
     except Exception as e:
         print e
-        error_coll.insert({'time': int(time.time() * 1000), "where": 'catch_all', "msg": "{0}".format(e)})
-        return (jsonify(state='error', error="{0}".format(e)), 500)
+        return (jsonify(status='error', error="{0}".format(e)), 200)
 
 if __name__ == '__main__':
     app.debug = True

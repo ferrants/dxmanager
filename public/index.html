@@ -9,7 +9,28 @@
   <body>
     <div class="container">
       <div ng-controller="EnvironmentCtrl">
-        <button class='btn btn-default pull-right' ng-class="{'loading': active_requests > 0}" ng-click="update_data()" title='{{ active_requests }} active requests'>Refresh</button>
+        <div class='pull-right'>
+          <form ng-init="load_auth()" ng-switch="auth" class="form-inline" role="form">
+
+            <span ng-switch-when="false">
+              <div class='form-group'>
+                <input type="text" class="form-control" ng-model="login_form.username" placeholder="Username">
+              </div>
+              <div class='form-group'>
+                <input type="password" class="form-control" ng-model="login_form.api_token" placeholder="Jenkins API Token">
+              </div>
+              <button type='submit' class='btn btn-default' ng-click="log_in()">Log In</button>
+            </span>
+
+            <span ng-switch-default>
+              Logged in as {{ auth.username }}
+              <button ng-click="log_out()"class='btn btn-default'>Log Out</button>
+            </span>
+
+            <button class='btn btn-default' ng-class="{'loading': active_requests > 0}" ng-click="update_data()" title='{{ active_requests }} active requests'>Refresh</button>
+
+          </form>
+        </div>
         <h1>DXManager - AWS</h1>
 
         <div ng-init="refresh(); tab='environments'">
@@ -60,13 +81,14 @@
                     <div class="input-group deploy-input-group">
                       <input ng-model="env.deploy_ami" type="text" class="form-control" placeholder="{{ env.ami_id }}">
                       <span class="input-group-btn">
-                        <button class="btn btn-default" type="button">Deploy</button>
+                        <button ng-click="deploy(env, env.deploy_ami)" class="btn btn-default" type="button">Deploy</button>
                       </span>
                     </div>
                   </div>
                 </div>
 
                 <div ng-hide="!env.show_amis">
+                  <p>List of AMIs with node_type, {{ env.ami_tags.node_type }}, like the currently . Clicking a row will populate the deploy field.</p>
                   <table class="table table-hover table-condensed">
                       <thead>
                           <tr>
@@ -81,59 +103,24 @@
                           <td><a target='_blank' href='{{ ami.tags.git_url | remote2github }}/tree/{{ ami.tags.git_commit }}'>{{ ami.tags.git_branch.replace('origin/', '') }} {{ ami.tags.git_commit | short_hash }}</a></td>
                       </tr>
                   </table>
-                  <p>* AMI list shows only AMIs that have the same node_type as the deployed AMI
                 </div>
-
               </div>
-
-<!--               <div class='col-md-12'>
-                <dl class="dl-horizontal">
-                  <dt>AutoScaling Group</dt>
-                  <dd><a target='_blank' href='https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#AutoScalingGroups:id={{ env.name }}'>{{ env.name }}</a></dd>
-                  <dt>Launch Configuration</dt>
-                  <dd><a target='_blank' href='
-                    https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#LaunchConfigurations:id={{ env.launch_config_name }}'>{{ env.launch_config_name }}</a></dd>
-                  <span ng-repeat='(k,v) in env.tags'>
-                    <dt>{{ k }}</dt>
-                    <dd>{{ v }}</dd>
-                  </span>
-                  <span ng-repeat='(k,v) in env.ami_tags'>
-                    <dt>{{ k }}</dt>
-                    <dd>{{ v }}</dd>
-                  </span>
-                </dl>
-              </div> -->
-
             </div>
-
-              
-              
-<!--                     <form class='form-inline'>
-                <span ng-switch on="deploy_type(environment.name)">
-                  <div ng-switch-when="text" class='input-append'>
-                    <input type='text' class='deploy-text' ng-model="environment.deploy_value" placeholder='{{ environment.deploy.input.placeholder }}'>
-                    <div class="btn-group">
-                      <button class='btn' ng-click="deploy(environment.name, environment.deploy_value)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">{{ environment.deploy.input.button_text }}</button>
-                      <button class="btn dropdown-toggle" data-toggle="dropdown" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">
-                        <span class="caret"></span>
-                      </button>
-                      <ul class="dropdown-menu">
-                        <li><a href='#' ng-click="deploy(environment.name)">Claim</a></li>
-                      </ul>
-                     </div>
-                  </div>
-                  <button ng-switch-default class='btn' ng-click="deploy(environment.name)" ng-class="{true:'', false:'disabled'}[can_deploy(environment.name)]">Deploy</button>
-                </span>
-                <button class='btn' ng-click="relinquish(environment.name)" ng-class="{true:'', false:'disabled'}[can_relinquish(environment.name)]">Relinquish</button>
-              </form> -->
           </div>
-
-          <!-- <pre ng-hide="tab != 'meta'">{{ get_data() }}</pre> -->
+          <!-- <pre>{{ get_data() }}</pre> -->
+          <a href='#' class='pull-right' ng-click='show_help=!show_help'>Help</a>
+          <p>Created by <a target='_blank' href='http://github.com/ferrants/'>Matt Ferrante</a> for <a target='_blank' href='http://github.com/dataxu/'>DataXu</a></p>
+          <div ng-hide="!show_help">
+            <h3>Help</h3>
+            <p>Information about how to use</p>
+          </div>
           <h3>Todo:</h3>
           <ul>
-            <li>Authentication with LDAP</li>
-            <li>Deploy</li>
+            <li>Pull jenkins information to show</li>
+            <li>Actual Deploy</li>
+            <li>Disable deploy</li>
             <li>Warnings on misconfiguration</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -142,7 +129,7 @@
     <script src="/lib/momentjs/moment.js"></script>
     <script src="/lib/bootstrap/dist/js/bootstrap.min.js"></script>
     <script src="/lib/angular/angular.min.js"></script>
-    <script src="/lib/angular-cookies/angular-cookies.min.js"></script>
+    <script src="/lib/angular-local-storage/angular-local-storage.min.js"></script>
     <script src="/js/app.js"></script>
   </body>
 </html>
