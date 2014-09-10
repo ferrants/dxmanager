@@ -10,7 +10,7 @@
     <div class="container">
       <div ng-controller="EnvironmentCtrl">
         <button class='btn btn-default pull-right' ng-class="{'loading': active_requests > 0}" ng-click="update_data()" title='{{ active_requests }} active requests'>Refresh</button>
-        <h1>DXManager</h1>
+        <h1>DXManager - AWS</h1>
 
         <div ng-init="refresh(); tab='environments'">
 
@@ -18,54 +18,72 @@
               <div ng-repeat="error in errors" class="alert alert-danger" role="alert"><span class='glyphicon glyphicon-warning-sign'></span>&nbsp;&nbsp;Error: {{ error }}</div>
           </div>
 
-          <ul class="nav nav-pills">
-            <li ng-class="{active: tab == 'environments'}" ng-click="tab='environments'"><a href="#"><span class="badge pull-right">{{ app_data.environments.length }}</span>Environments&nbsp;&nbsp;</a></li>
-            <li ng-class="{active: tab == 'errors'}" ng-click="tab='errors'"><a href="#"><span class="badge pull-right">{{ app_data.errors.length }}</span>Server Errors&nbsp;&nbsp;</a></li>
-            <li ng-class="{active: tab == 'meta'}" ng-click="tab='meta'"><a href="#">Meta</a></li>
-          </ul>
+          <div>
 
-          <div ng-class="{hide: tab != 'environments'}">
-            <h3>Environments in AWS</h3>
-            <div ng-repeat="env in get_environments()" class='row env'>
-              <div class='col-md-5'>
-                <h3>{{ env.tags.name }}</h3>
+            <div class='row'>
+              <div class='col-md-12 filter-list'>
+                Filter
+                <a ng-click="filter_exclusively=!filter_exclusively" href='#'>{{ filter_exclusively ? "exclusively" : "all of" }}</a>
+                <button ng-repeat="filter in filters | orderBy: ['key', 'value']" ng-click="enable_filter(filter)" ng-class="{'btn-primary': filter.enabled}" type="button" class="btn btn-default btn-xs">
+                  <span class="glyphicon glyphicon-tag"></span> {{ filter.key }}: {{ filter.value }} ({{ filter.count }})
+                </button>
+              </div>
+            </div>
+
+            <div ng-repeat="env in environments | filter : filter_environments" class='row env'>
+              <div class='col-md-4'>
+               <h3>{{ env.tags.name }}</h3>
                 <div class="progress">
                   <div class="progress-bar" role="progressbar" aria-valuenow="{{ env.current_size }}" aria-valuemin="0" aria-valuemax="{{ env.max_size }}" style="width: {{ env.current_size * 100 / env.max_size }}%;">
-                    {{ env.current_size }} instance - {{ env.min_size }}min / {{ env.desired_size }} / {{ env.max_size }}max
+                    {{ env.current_size }} instance - {{ env.min_size }} min / {{ env.desired_size }} desired / {{ env.max_size }} max
                   </div>
                 </div>
-                {{ env.tags.environment }}
+                Environment: {{ env.tags.environment }}
                 <div ng-switch="env.tags.build_user">
                   <div ng-switch-when="None Specified">No Deploy Information</div>
-                  <div ng-switch-default>{{ env.tags.build_user }} deployed from <a href='{{ env.tags.build_url }}'>{{ env.tags.build_url }}</a></div>
+                  <div ng-switch-default>{{ env.tags.build_user }} ran <a target='_blank' href='{{ env.tags.build_url }}'>{{ env.tags.build_url.replace("http://jenkins.devaws.dataxu.net/job/", '') }}</a></div>
                 </div>
                 AWS: <a target='_blank' href='https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#AutoScalingGroups:id={{ env.name }}'>AutoScaling Group</a> - <a target='_blank' href='https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#LaunchConfigurations:id={{ env.launch_config_name }}'>Launch Configuration</a>
               </div>
-              <div class='col-md-7'>
+              <div class='col-md-8'>
                 <h3>{{ env.ami_id }} ({{ env.ami_tags.node_type }})</h3>
                 GitHub: <a target='_blank' href='{{ env.ami_tags.git_url | remote2github }}'>{{ env.ami_tags.git_url | remote2name }}</a> - 
                 <a target='_blank' href='{{ env.ami_tags.git_url | remote2github }}/tree/{{ env.ami_tags.git_commit }}'>[{{ env.ami_tags.git_branch.replace('origin/', '') }}] {{ env.ami_tags.git_commit | short_hash }}</a>
                 <br/>AMI: <a target='_blank' href='{{ env.ami_tags.build_url }}'>{{ env.ami_tags.build_url.replace("http://jenkins.devaws.dataxu.net/job/", '') }}</a>
                 <br/><p>{{ env.ami_description }}</p>
-                <div class="input-group">
-                  <input type="text" class="form-control" placeholder="{{ env.ami_id }}">
-                  <span class="input-group-btn">
-                    <button class="btn btn-default" type="button">Clear</button>
-                    <button class="btn btn-default" type="button">Deploy</button>
-                    <button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">AMIs <span class="caret"></span></button>
 
-                    <ul class="dropdown-menu dropdown-menu-right" role="menu">
-                      <li class="dropdown-header">master</li>
-                      <li><a href="#">ami-1234</a></li>
-                      <li class="divider"></li>
-                      <li class="dropdown-header">rel-</li>
-                      <li><a href="#">ami-2345</a></li>
-                      <li class="divider"></li>
-                      <li class="dropdown-header">dev-</li>
-                      <li><a href="#">ami-3456</a></li>
-                    </ul>
-                  </span>
+                <div class="form-inline" role="form">
+                  <div class='form-group'>
+                    <button class="btn btn-default" type="button" ng-click="env.show_amis = !env.show_amis">Show AMIs</button>
+                  </div>
+                  <div class='form-group'>
+                    <div class="input-group deploy-input-group">
+                      <input ng-model="env.deploy_ami" type="text" class="form-control" placeholder="{{ env.ami_id }}">
+                      <span class="input-group-btn">
+                        <button class="btn btn-default" type="button">Deploy</button>
+                      </span>
+                    </div>
+                  </div>
                 </div>
+
+                <div ng-hide="!env.show_amis">
+                  <table class="table table-hover table-condensed">
+                      <thead>
+                          <tr>
+                            <th class='col-md-1'>ID</th>
+                            <th class='col-md-1'>Name</th>
+                            <th class='col-md-1'>Git</th>
+                          </tr>
+                      </thead>
+                      <tr ng-repeat="ami in env.ami_candidates | orderBy: '-name'" ng-click="env.deploy_ami = ami.id">
+                          <td><a target='_blank' href='https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#Images:filter=all-images;search={{ ami.id }}'>{{ ami.id }}</td>
+                          <td><a target='_blank' href='{{ ami.tags.build_url }}'>{{ ami.name }}</a></td>
+                          <td><a target='_blank' href='{{ ami.tags.git_url | remote2github }}/tree/{{ ami.tags.git_commit }}'>{{ ami.tags.git_branch.replace('origin/', '') }} {{ ami.tags.git_commit | short_hash }}</a></td>
+                      </tr>
+                  </table>
+                  <p>* AMI list shows only AMIs that have the same node_type as the deployed AMI
+                </div>
+
               </div>
 
 <!--               <div class='col-md-12'>
@@ -110,29 +128,12 @@
               </form> -->
           </div>
 
-          <div ng-class="{hide: tab != 'errors'}">
-              <table class="table">
-                  <thead>
-                      <tr>
-                        <th class='col-md-2'>Time</th>
-                        <th class='col-md-3'>Where</th>
-                        <th class='col-md-3'>Message</th>
-                      </tr>
-                  </thead>
-                  <tr ng-repeat="elem in app_data.errors">
-                      <td>{{ elem.time |fromNow }}</td>
-                      <td>{{ elem.where }}</td>
-                      <td>{{ elem.msg }}</td>
-                  </tr>
-              </table>
-          </div>
-          <pre ng-class="{hide: tab != 'meta'}">{{ get_data() }}</pre>
+          <!-- <pre ng-hide="tab != 'meta'">{{ get_data() }}</pre> -->
           <h3>Todo:</h3>
           <ul>
-            <li>Tags</li>
-            <li>AMI lookup</li>
             <li>Authentication with LDAP</li>
             <li>Deploy</li>
+            <li>Warnings on misconfiguration</li>
         </div>
       </div>
     </div>

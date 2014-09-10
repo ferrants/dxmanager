@@ -64,13 +64,14 @@ def data():
 
     environments = []
     data = {}
+    api_requests = 0
     try:
         if not cached_response:
             ec_conn = boto.ec2.connect_to_region('us-east-1')
             as_conn = boto.ec2.autoscale.connect_to_region('us-east-1')
             groups =  as_conn.get_all_groups()
+            api_requests += 1
             for group in groups:
-                print vars(group)
                 environment = {
                     'name': group.name,
                     'desired_size': group.desired_capacity,
@@ -82,12 +83,13 @@ def data():
                 }
                 if 'managed_by' in environment['tags'] and environment['tags']['managed_by'] == 'ec2_asg_deployer':
                     environments.append(environment)
+
             launch_config_names = [environment['launch_config_name'] for environment in environments]
             launch_configs = as_conn.get_all_launch_configurations(names=launch_config_names)
-            # for config in launch_configs:
-            #     print vars(config)
+            api_requests += 1
             launch_config_map = {config.name: config for config in launch_configs}
-            print launch_config_map
+            node_type_map = {}
+
             for environment in environments:
                 if environment['launch_config_name'] in launch_config_map:
                     env_config = launch_config_map[environment['launch_config_name']]
@@ -96,15 +98,29 @@ def data():
                     environment['instance_monitoring'] = env_config.instance_monitoring.enabled
                     environment['security_groups'] = env_config.security_groups
                     ami = ec_conn.get_image(environment['ami_id'])
+                    api_requests += 1
                     environment['ami_tags'] = ami.tags
                     environment['ami_name'] = ami.name
                     environment['ami_description'] = ami.description
+                    environment['ami_candidates'] = []
+                    if ami.tags['node_type'] not in node_type_map:
+                        potential_amis = ec_conn.get_all_images(filters={'tag-key': 'node_type', 'tag-value': ami.tags['node_type']})
+                        api_requests += 1
+                        node_type_map[ami.tags['node_type']] = potential_amis
+
+                    for ami in node_type_map[ami.tags['node_type']]:
+                        environment['ami_candidates'].append({
+                            'id': ami.id,
+                            'tags': ami.tags,
+                            'name': ami.name,
+                            'description': ami.description
+                            })
                 else:
                     print "not found?"
                     print environment
 
-
             cached_response = environments
+        print "{0} api requests made".format(api_requests)
 
         return (jsonify(
             status="success",

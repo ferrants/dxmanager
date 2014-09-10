@@ -34,6 +34,9 @@
   animation: myfirst 1s infinite;
   -webkit-animation: myfirst 1s infinite; /* Safari and Chrome */
 }
-input.deploy-text{
-	width: 180px;
+.deploy-input-group{
+    width: 300px;
+}
+.filter-list button{
+    margin: 3px;
 }
