@@ -46,6 +46,8 @@ db = client[app.config['MONGO_DB_NAME']]
 
 environments_coll = db.events
 
+users={'mferrante': '5d90548825cc8c607fbc8737fb73802d'}
+
 running_status = 'running'
 
 cached_response = False
@@ -60,13 +62,16 @@ def data():
 
     environments = []
     data = {}
-    api_requests = 0
+    aws_api_requests = 0
+    jenkins_api_requests = 0
+
     try:
-        if not cached_response:
+        if not cached_response or request.args.get('update_cache', False):
+            print "Updating cached_response"
             ec_conn = boto.ec2.connect_to_region('us-east-1')
             as_conn = boto.ec2.autoscale.connect_to_region('us-east-1')
             groups =  as_conn.get_all_groups()
-            api_requests += 1
+            aws_api_requests += 1
             for group in groups:
                 environment = {
                     'name': group.name,
@@ -82,7 +87,7 @@ def data():
 
             launch_config_names = [environment['launch_config_name'] for environment in environments]
             launch_configs = as_conn.get_all_launch_configurations(names=launch_config_names)
-            api_requests += 1
+            aws_api_requests += 1
             launch_config_map = {config.name: config for config in launch_configs}
             node_type_map = {}
 
@@ -94,14 +99,14 @@ def data():
                     environment['instance_monitoring'] = env_config.instance_monitoring.enabled
                     environment['security_groups'] = env_config.security_groups
                     ami = ec_conn.get_image(environment['ami_id'])
-                    api_requests += 1
+                    aws_api_requests += 1
                     environment['ami_tags'] = ami.tags
                     environment['ami_name'] = ami.name
                     environment['ami_description'] = ami.description
                     environment['ami_candidates'] = []
                     if ami.tags['node_type'] not in node_type_map:
                         potential_amis = ec_conn.get_all_images(filters={'tag-key': 'node_type', 'tag-value': ami.tags['node_type']})
-                        api_requests += 1
+                        aws_api_requests += 1
                         node_type_map[ami.tags['node_type']] = potential_amis
 
                     for ami in node_type_map[ami.tags['node_type']]:
@@ -115,8 +120,24 @@ def data():
                     print "not found?"
                     print environment
 
+
+            if len(users.keys()) > 0:
+                print "Looking up in jenkins as {0}".format(users.keys()[0])
+                jenkins_instance = Jenkins(app.config['JENKINS_URL'],
+                    users.keys()[0],
+                    users[users.keys()[0]])
+
+                for environment in environments:
+                    environment['job'] = get_jenkins_job(jenkins_instance, environment['tags']['build_url'])
+                    jenkins_api_requests += 1;
+
+                print environments
+                print "Done with jenkins"
+
             cached_response = environments
-        print "{0} api requests made".format(api_requests)
+
+        print "{0} jenkins api requests made".format(jenkins_api_requests)
+        print "{0} aws api requests made".format(aws_api_requests)
 
         return (jsonify(
             status="success",
@@ -149,6 +170,7 @@ def auth():
                 json['username'],
                 json['api_token'])
             jobs = jenkins_instance.get_jobs();
+            users[json['username']] = json['api_token'];
         print "Authentication Succeeded"
         return (jsonify(status=state, msg="correct credentials", **return_data), 200)
     except Exception as e:
@@ -157,15 +179,38 @@ def auth():
         return (jsonify(status='error', error="credentials are wrong for {0}".format(app.config['JENKINS_URL'])), 200)
 
 
-@app.route('/deploy', methods = ['POST'])
+def get_jenkins_job(jenkins_instance, url):
+    job_search = re.search('job/([a-zA-Z\-_]+)/([0-9]+)', url)
+    job = False
+    if job_search:
+        job = {}
+        job_name = job_search.group(1)
+        build_number = int(job_search.group(2))
+        job['name'] = job_name
+        job['number'] = build_number
+
+        build_info = jenkins_instance.get_build_info(job_name, build_number)
+        parameter_action = False
+        parameters = {}
+        
+        for action in build_info['actions']:
+            if 'parameters' in action:
+                parameter_action = action
+        if parameter_action:
+            for param in parameter_action['parameters']:
+                parameters[param['name']] = param['value']
+        job['parameters'] = parameters
+
+    return job
+
+
+@app.route('/run_job', methods = ['POST'])
 def trigger():
     return_data = {}
-    state = 'success'
+    state = 'error'
     msg = "nothing done"
     try:
         if request.method == 'POST':
-            state='error'
-            return_data['error'] = 'not implemented'
             json = request.data
             if isinstance(json, basestring):
                 json = simplejson.loads(json)
@@ -175,39 +220,18 @@ def trigger():
                 json['username'],
                 json['api_token'])
 
-            job_search = re.search('job/([a-zA-Z\-_]+)/([0-9]+)', json['build_url'])
-            if job_search:
-                job_name = job_search.group(1)
-                build_number = int(job_search.group(2))
-                return_data['job_name'] = job_name
-                return_data['build_number'] = build_number
+            if 'job' in json and 'name' in json['job'] and 'parameters' in json['job']:
 
-                build_info = jenkins_instance.get_build_info(job_name, build_number)
-                parameter_action = False
-                for action in build_info['actions']:
-                    if 'parameters' in action:
-                        parameter_action = action
-                if not parameter_action:
-                    state = 'error'
-                    return_data['error'] = 'no job parameters?'
-                else:
-                    parameters = {}
-                    for param in parameter_action['parameters']:
-                        parameters[param['name']] = param['value']
-                    print parameters
-                    if 'ami_id' not in parameters:
-                        state = 'error'
-                        return_data['error'] = "no ami_id parameter for last job, can't run"
-                    else:
-                        print "Happy Path"
-                        parameters['ami_id'] = json['ami_id']
-                        return_data['parameters'] = parameters
-                        msg = "Would trigger {0} on {1} with {2}".format(job_name, app.config['JENKINS_URL'], parameters)
-                        return_data['error'] = msg
+                jenkins_instance.build_job(json['job']['name'], parameters=json['job']['parameters'])
 
+                return_data['job_name'] = json['job']['name']
+                return_data['job_parameters'] = json['job']['parameters']
+                msg = "Triggered {0} on {1} with {2}".format(return_data['job_name'], app.config['JENKINS_URL'], return_data['job_parameters'])
+                return_data['feedback'] = [msg]
+                state = 'success'
             else:
-                state = 'error'
-                return_data['error'] = 'malformed build url'
+                print "HERE"
+                return_data['error'] = "previous deploy has no job information, unable to use."
 
         print return_data
         return (jsonify(status=state, msg=msg, **return_data), 200)

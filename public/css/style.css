@@ -1,7 +1,7 @@
 .env {
   padding-top: 5px;
   padding-bottom: 5px;
-  /*border: 1px solid #f0f0f0;*/
+  border: 1px solid #f0f0f0;
   margin-bottom: 5px;
 }
 .env h3{
@@ -35,7 +35,7 @@
   -webkit-animation: myfirst 1s infinite; /* Safari and Chrome */
 }
 .deploy-input-group{
-    width: 300px;
+    width: 320px;
 }
 .filter-list button{
     margin: 3px;

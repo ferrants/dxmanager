@@ -29,10 +29,13 @@ dxmanager.controller('EnvironmentCtrl', function($scope, $http, localStorageServ
   };
   $scope.environments = [];
   $scope.errors = [];
+  $scope.feedback = [];
   $scope.active_requests = 0;
-  $scope.filters = [];
-  $scope.enabled_filters = [];
-  $scope.filter_exclusively = true;
+  $scope.filters = {};
+  $scope.filter_list = [];
+  $scope.enabled_filter_list = [];
+  $scope.filter_mode = 'exclusive';
+  var filter_keys = ['name', 'environment']
 
   $scope.auth = false;
   $scope.login_form = {
@@ -40,13 +43,14 @@ dxmanager.controller('EnvironmentCtrl', function($scope, $http, localStorageServ
     api_token: ''
   };
 
-  $scope.load_auth = function(){
+  $scope.load_state = function(){
     if (localStorageService.get('username') && localStorageService.get('api_token')){
       $scope.auth = $scope.login_form = {
         'username': localStorageService.get('username'),
         'api_token': localStorageService.get('api_token')
       };
     }
+    $scope.filter_mode = localStorageService.get('filter_mode');
   };
 
   $scope.log_in = function(){
@@ -71,32 +75,60 @@ dxmanager.controller('EnvironmentCtrl', function($scope, $http, localStorageServ
     return $scope.environments;
   };
 
-  $scope.enable_filter = function(filter){
-    filter.enabled = !filter.enabled;
-    enabled_filters = [];
-    for (f in $scope.filters){
-      if ($scope.filters[f].enabled){
-        enabled_filters.push($scope.filters[f]);
+  $scope.toggle_filter = function(key, value){   
+    console.log($scope.filters)
+    $scope.filters[key][value].enabled = ! $scope.filters[key][value].enabled ;
+    set_filter_list();
+    localStorageService.set('filters', $scope.filters)
+  };
+
+
+  $scope.toggle_filter_mode = function(){
+    $scope.filter_mode = ($scope.filter_mode == 'exclusive') ? 'inclusive' : 'exclusive';
+    localStorageService.set('filter_mode', $scope.filter_mode);
+
+  };
+
+  set_filter_list = function(){
+    console.log($scope.filters)
+    filters = []
+    enabled_filters = []
+    for (k in $scope.filters){
+      for (v in $scope.filters[k]){
+        filter = {
+            key: k,
+            value: v,
+            count: $scope.filters[k][v].count,
+            enabled: $scope.filters[k][v].enabled
+          };
+
+        filters.push(filter);
+        if (filter.enabled){
+          enabled_filters.push(filter)
+        }
       }
     }
-    $scope.enabled_filters = enabled_filters;
+    $scope.filter_list = filters;
+    $scope.enabled_filter_list = enabled_filters;
   };
 
   $scope.filter_environments = function(env, v){
-    if ($scope.enabled_filters.length == 0){
+    enabled_filters = $scope.enabled_filter_list;
+    console.log(enabled_filters);
+    if (enabled_filters.length == 0){
       return true;
     }else{
-      if ($scope.filter_exclusively){
-        for (f in $scope.enabled_filters){
-          filter = $scope.enabled_filters[f];
+      if ($scope.filter_mode == 'exclusive'){
+        for (i in enabled_filters){
+          filter = enabled_filters[i];
           if (env.tags[filter.key] != filter.value){
             return false;
           }
         }
         return true;
       }else{
-        for (f in $scope.enabled_filters){
-          filter = $scope.enabled_filters[f];
+        for (i in enabled_filters){
+          filter = enabled_filters[i];
           if (env.tags[filter.key] == filter.value){
             return true;
           }
@@ -107,48 +139,90 @@ dxmanager.controller('EnvironmentCtrl', function($scope, $http, localStorageServ
   };
 
   parse_filters = function(){
-    var filters = {
-      name: {},
-      environment: {}
-    };
+    if (Object.keys($scope.filters).length == 0){
+      loaded_filters = localStorageService.get('filters')
+      if (!(loaded_filters)){
+        loaded_filters = {}
+      }
+    }
+
+    filters = {}
+    for (k in filter_keys){
+      filters[filter_keys[k]] = {}
+    }
+    
     for (i in $scope.environments){
       env = $scope.environments[i];
-      for (k in filters){
+      console.log(env)
+      for (i in filter_keys){
+        k = filter_keys[i]
         if (k in env.tags){
-          if (!(env.tags[k] in filters[k])){
-            filters[k][env.tags[k]] = 0;
+          value = env.tags[k]
+          if (!(value in filters[k])){
+            filters[k][value] = {count: 0, enabled: false};
           }
-          filters[k][env.tags[k]] += 1;
+          filters[k][value].count += 1;
+          if (k in loaded_filters && value in loaded_filters[k] && loaded_filters[k][value].enabled){
+            filters[k][value].enabled = true;
+          }
         }
       }
-    }
-    filter_list = []
-    for (k in filters){
-      for (v in filters[k]){
-        filter_list.push({
-          'key': k,
-          'value': v,
-          'count': filters[k][v]
-        });
-      }
-    }
-    $scope.filters = filter_list;
+      
 
+    }
+
+    $scope.filters = filters;
+    set_filter_list();
   };
 
-  $scope.refresh = function(){
+  post_process_environments = function(){
+    for (i in $scope.environments){
+      env = $scope.environments[i];
+      warnings = []
+      deploy_job = false;
+      if (!('build_url' in env.tags) || env.tags.build_url == 'None Specified'){
+        warnings.push("No deploy information for the ASG, this deploy was not done from Jenkins")
+      }
+      if (!('build_url' in env.ami_tags) || env.ami_tags.build_url == 'None Specified'){
+        warnings.push("No creation information for AMI, it was not made in Jenkins")
+      }
+      if (env.current_size == 0){
+        warnings.push("There are no instances")
+      }else if ( env.current_size !=  env.desired_size ){
+        warnings.push("There are " + env.current_size + " instances when there should be " + env.desired_size)
+      }
+      
+      if (env.job){
+        deploy_job = JSON.parse(JSON.stringify(env.job));
+        deploy_job.parameters.ami_id = '';
+      }
+
+      env.warnings = warnings;
+      env.deploy_job = deploy_job;
+
+    }
+  };
+
+  $scope.refresh = function(update_cache){
     $scope.active_requests += 1;
-    $http.get('/environments').success(function(data) {
+
+    url = '/environments'
+    if (update_cache){
+      url += "?update_cache=1"
+    }
+    $http.get(url).success(function(data) {
       if (data.status == 'success'){
         $scope.active_requests -= 1;
         envs = [];
         $scope.environments = data.environments;
         for (env in data.environments){
           if (data.environments[env].tags.managed_by == 'ec2_asg_deployer'){
+            data.environments[env].warnings = []
             envs.push(data.environments[env]);
           }
         }
         $scope.environments = envs;
+        post_process_environments();
         parse_filters();
       }else{
         $scope.errors = [data.error];
@@ -157,9 +231,10 @@ dxmanager.controller('EnvironmentCtrl', function($scope, $http, localStorageServ
   };
 
   $scope.deploy = function(env, ami){
-    console.log(env);
-    console.log(ami);
-    if (!(ami)){
+
+    if (!$scope.auth){
+      $scope.errors = ["You must log in to deploy"]
+    }else if (!(ami)){
       $scope.errors = ["Need to specify an AMI"]
     }else if (env.tags.build_url.indexOf('http://jenkins.devaws') != 0){
       $scope.errors = ["Can't deploy to environment in unknown state, no old deploy job"]
@@ -169,14 +244,16 @@ dxmanager.controller('EnvironmentCtrl', function($scope, $http, localStorageServ
       $scope.errors = ["Same AMI, not running deploy"]
     }else{
       $scope.errors = []
-      $http.post('/deploy', {
+      $http.post('/run_job', {
         username: $scope.auth.username,
         api_token: $scope.auth.api_token,
-        build_url: env.tags.build_url,
-        ami_id: ami
+        job: env.deploy_job
       }).success(function(data) {
         if (data.status == 'success'){
           console.log(data);
+          if (data.feedback){
+            $scope.feedback = data.feedback;
+          }
         }else{
           $scope.errors = [data.error];
         }

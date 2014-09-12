@@ -10,7 +10,7 @@
     <div class="container">
       <div ng-controller="EnvironmentCtrl">
         <div class='pull-right'>
-          <form ng-init="load_auth()" ng-switch="auth" class="form-inline" role="form">
+          <form ng-init="load_state()" ng-switch="auth" class="form-inline" role="form">
 
             <span ng-switch-when="false">
               <div class='form-group'>
@@ -27,13 +27,15 @@
               <button ng-click="log_out()"class='btn btn-default'>Log Out</button>
             </span>
 
-            <button class='btn btn-default' ng-class="{'loading': active_requests > 0}" ng-click="update_data()" title='{{ active_requests }} active requests'>Refresh</button>
+            <button class='btn btn-default' ng-class="{'loading': active_requests > 0}" ng-click="refresh(true)" title='{{ active_requests }} active requests'>Refresh</button>
 
           </form>
         </div>
         <h1>DXManager - AWS</h1>
 
-        <div ng-init="refresh(); tab='environments'">
+        <div ng-init="refresh(false); tab='environments'">
+
+          <div ng-repeat="sentence in feedback" class="alert alert-success" role="alert"><span class='glyphicon glyphicon-info-sign'></span>&nbsp;&nbsp;Info: {{ sentence }}</div>
 
           <div ng-class="{hide: errors.length < 1}">
               <div ng-repeat="error in errors" class="alert alert-danger" role="alert"><span class='glyphicon glyphicon-warning-sign'></span>&nbsp;&nbsp;Error: {{ error }}</div>
@@ -44,8 +46,8 @@
             <div class='row'>
               <div class='col-md-12 filter-list'>
                 Filter
-                <a ng-click="filter_exclusively=!filter_exclusively" href='#'>{{ filter_exclusively ? "exclusively" : "all of" }}</a>
-                <button ng-repeat="filter in filters | orderBy: ['key', 'value']" ng-click="enable_filter(filter)" ng-class="{'btn-primary': filter.enabled}" type="button" class="btn btn-default btn-xs">
+                <a ng-click="toggle_filter_mode()" href='#'>{{ filter_mode == 'exclusive' ? "exclusively" : "all of" }}</a>
+                <button ng-repeat="filter in filter_list | orderBy: ['key', 'value']" ng-click="toggle_filter(filter.key, filter.value)" ng-class="{'btn-primary': filter.enabled}" type="button" class="btn btn-default btn-xs">
                   <span class="glyphicon glyphicon-tag"></span> {{ filter.key }}: {{ filter.value }} ({{ filter.count }})
                 </button>
               </div>
@@ -60,35 +62,74 @@
                   </div>
                 </div>
                 Environment: {{ env.tags.environment }}
-                <div ng-switch="env.tags.build_user">
-                  <div ng-switch-when="None Specified">No Deploy Information</div>
-                  <div ng-switch-default>{{ env.tags.build_user }} ran <a target='_blank' href='{{ env.tags.build_url }}'>{{ env.tags.build_url.replace("http://jenkins.devaws.dataxu.net/job/", '') }}</a></div>
+                <div ng-switch="env.job">
+                  <div ng-switch-when="false">No Deploy Information</div>
+                  <div ng-switch-default>{{ env.tags.build_user }} ran <a target='_blank' href='{{ env.tags.build_url }}'>{{ env.job.name }} #{{ env.job.number }}</a></div>
                 </div>
-                AWS: <a target='_blank' href='https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#AutoScalingGroups:id={{ env.name }}'>AutoScaling Group</a> - <a target='_blank' href='https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#LaunchConfigurations:id={{ env.launch_config_name }}'>Launch Configuration</a>
+                AWS: <a target='_blank' href='https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#AutoScalingGroups:id={{ env.name }}'>AutoScaling Group</a> | <a target='_blank' href='https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#LaunchConfigurations:id={{ env.launch_config_name }}'>Launch Configuration</a>
+
               </div>
-              <div class='col-md-8'>
+              <div class='col-md-5'>
                 <h3>{{ env.ami_id }} ({{ env.ami_tags.node_type }})</h3>
-                GitHub: <a target='_blank' href='{{ env.ami_tags.git_url | remote2github }}'>{{ env.ami_tags.git_url | remote2name }}</a> - 
-                <a target='_blank' href='{{ env.ami_tags.git_url | remote2github }}/tree/{{ env.ami_tags.git_commit }}'>[{{ env.ami_tags.git_branch.replace('origin/', '') }}] {{ env.ami_tags.git_commit | short_hash }}</a>
-                <br/>AMI: <a target='_blank' href='{{ env.ami_tags.build_url }}'>{{ env.ami_tags.build_url.replace("http://jenkins.devaws.dataxu.net/job/", '') }}</a>
-                <br/><p>{{ env.ami_description }}</p>
+                <div ng-switch="env.ami_tags.git_url">
+                  GitHub: 
+                  <span ng-switch-when="None Specified">No Information</span>
+                  <span ng-switch-default>
+                    <a target='_blank' href='{{ env.ami_tags.git_url | remote2github }}'>{{ env.ami_tags.git_url | remote2name }}</a> - 
+                    <a target='_blank' href='{{ env.ami_tags.git_url | remote2github }}/tree/{{ env.ami_tags.git_commit }}'>[{{ env.ami_tags.git_branch.replace('origin/', '') }}] {{ env.ami_tags.git_commit | short_hash }}</a>
+                  </span>
+                </div>
+                <div ng-switch="env.ami_tags.build_url">
+                  AMI Job: <a ng-switch-default target='_blank' href='{{ env.ami_tags.build_url }}'>{{ env.ami_tags.build_url.replace("http://jenkins.devaws.dataxu.net/job/", '') }}</a>
+                  <span ng-switch-when="None Specified">No Information</span>
+                </div>
 
                 <div class="form-inline" role="form">
                   <div class='form-group'>
-                    <button class="btn btn-default" type="button" ng-click="env.show_amis = !env.show_amis">Show AMIs</button>
-                  </div>
-                  <div class='form-group'>
                     <div class="input-group deploy-input-group">
-                      <input ng-model="env.deploy_ami" type="text" class="form-control" placeholder="{{ env.ami_id }}">
+                      <input ng-model="env.deploy_job.parameters.ami_id" type="text" class="form-control" placeholder="{{ env.ami_id }}">
                       <span class="input-group-btn">
-                        <button ng-click="deploy(env, env.deploy_ami)" class="btn btn-default" type="button">Deploy</button>
+                        <button ng-click="deploy(env, env.deploy_job.parameters.ami_id)" class="btn btn-default" type="button">Deploy</button>
                       </span>
                     </div>
                   </div>
                 </div>
+                <a href='#' ng-click="env.show_amis = !env.show_amis">Show AMIs</a> | <a href='#' ng-click="env.show_deploy = !env.show_deploy">Show Deploy Information</a>
+              </div>
 
-                <div ng-hide="!env.show_amis">
-                  <p>List of AMIs with node_type, {{ env.ami_tags.node_type }}, like the currently . Clicking a row will populate the deploy field.</p>
+              <div class='col-md-3'>
+                <div class="alert" role="alert" ng-hide="env.warnings.length < 1" ng-class="{'alert-warning': ami.tags.environment != 'prod', 'alert-danger': ami.tags.environment == 'prod'}">
+                  <span class='glyphicon glyphicon-warning-sign'></span>&nbsp;&nbsp;There may be issues with this environment:
+                  <ul>
+                    <li ng-repeat="warning in env.warnings" >{{ warning }}</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class='col-md-4'>
+              </div>
+              <div class='col-md-8'> 
+                <div ng-hide="!env.show_deploy" ng-switch="env.job">
+                  <p ng-switch-when="false">No information, no job</p>
+                  <div ng-switch-default>
+                    <p>Deploy Information</p>
+                    <div class='col-md-6'>
+                      <h4>Last Deploy</h4>
+                      <dl>
+                        <pre><span ng-repeat="(k, v) in env.job.parameters"><strong>{{ k }}</strong><br/>  {{ v }}<br/><br/></span></pre>
+                      </dl>
+                    </div>
+                    <div class='col-md-6'>
+                      <h4>Next Deploy</h4>
+                        <pre><span ng-repeat="(k, v) in env.deploy_job.parameters"><strong>{{ k }}</strong><br/>  {{ v }}<br/><br/></span></pre>
+                    </div>
+                  </div>
+                </div>
+                <div ng-hide="!env.show_amis" class='col-md-12'>
+                  <div>
+                    <h4>{{ env.ami_tags.node_type }} amis</h4>
+                    <p>Clicking a row will populate the deploy field.</p>
+                  </div>
                   <table class="table table-hover table-condensed">
                       <thead>
                           <tr>
@@ -97,30 +138,40 @@
                             <th class='col-md-1'>Git</th>
                           </tr>
                       </thead>
-                      <tr ng-repeat="ami in env.ami_candidates | orderBy: '-name'" ng-click="env.deploy_ami = ami.id">
-                          <td><a target='_blank' href='https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#Images:filter=all-images;search={{ ami.id }}'>{{ ami.id }}</td>
-                          <td><a target='_blank' href='{{ ami.tags.build_url }}'>{{ ami.name }}</a></td>
-                          <td><a target='_blank' href='{{ ami.tags.git_url | remote2github }}/tree/{{ ami.tags.git_commit }}'>{{ ami.tags.git_branch.replace('origin/', '') }} {{ ami.tags.git_commit | short_hash }}</a></td>
+                      <tr ng-repeat="ami in env.ami_candidates | orderBy: '-name'" ng-click="env.deploy_job.parameters.ami_id = ami.id" ng-class='{"danger": ami.tags.git_commit == "None Specified", "warning": ami.id == env.deploy_job.parameters.ami_id, "success": ami.id == env.ami_id}'>
+                          <td>
+                            <a target='_blank' href='https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#Images:filter=all-images;search={{ ami.id }}'>{{ ami.id }}</a>
+                          </td>
+                          <td>
+                            <a target='_blank' href='{{ ami.tags.build_url }}'>{{ ami.name }}</a>
+                          </td>
+                          <td>
+                            <a target='_blank' href='{{ ami.tags.git_url | remote2github }}/tree/{{ ami.tags.git_commit }}'>{{ ami.tags.git_branch.replace('origin/', '') }} {{ ami.tags.git_commit | short_hash }}</a>
+                          </td>
                       </tr>
                   </table>
                 </div>
               </div>
+
             </div>
           </div>
-          <!-- <pre>{{ get_data() }}</pre> -->
+
           <a href='#' class='pull-right' ng-click='show_help=!show_help'>Help</a>
           <p>Created by <a target='_blank' href='http://github.com/ferrants/'>Matt Ferrante</a> for <a target='_blank' href='http://github.com/dataxu/'>DataXu</a></p>
           <div ng-hide="!show_help">
             <h3>Help</h3>
-            <p>Information about how to use</p>
+            <h4>About</h4>
+            <p>This page is used to aggregate some of the AWS data to make it more easily consumable and actionable. It shows environments by auto-scaling group and links back to the jenkins build jobs for the deploy and AMI creation. You can also run a jenkins job from here to deploy a new AMI with the same parameters you ran the last one with.</p>
+            <h4>Notes</h4>
+            <ul>
+              <li>Hitting refresh takes a while as it makes many requests to Amazon's EC2 API. Don't hit it a ton.</li>
+              <li>This only takes into account autoscaling groups that use the dxansible ec2_asg_deployer role</li>
+              <li>There is no url for the new deploy job, go to the previously run job and look at new builds to find yours</li>
+            </ul>
+            <h4>Deploying</h4>
+            <p>You must log in to deploy. Get your jenkins api token at the jenkins instance this is pointed to, Click your name on the top right, then Configure on the left and then "Show API Token". Copy that into the field at the top. This will save it locally in your browser and be used when running deploys, so deploys run as you.</p>
+            <p>Direct questions and issues to Matt Ferrante</p>
           </div>
-          <h3>Todo</h3>
-          <ul>
-            <li>Pull jenkins information to show</li>
-            <li>Actual Deploy</li>
-            <li>Disable deploy</li>
-            <li>Warnings on misconfiguration</li>
-          </ul>
         </div>
       </div>
     </div>
