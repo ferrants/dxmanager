@@ -8,17 +8,22 @@ require 'js-yaml'
 config = false  # static data-model that is loaded
 persistence = false # persistence class wrapper for mongo in this case
 
-config_path =  __dirname + '/content/config.yml'
+config_path =  __dirname + '/config.yml'
 console.log "Reading config from: #{config_path}"
 config = require config_path
 console.log config
+
+for env_key of config.env
+  if env_key of process.env
+    config.env[env_key] = process.env[env_key]
+    console.log "ENV Override - #{env_key} = #{config.env[env_key]}"
 
 email_regex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 validate_email = (email) ->
   email_regex.test(email)
 
 db_connect = (cb=()->) ->
-  persistence = new Persistence config.mongo.host, config.mongo.port, config.mongo.db
+  persistence = new Persistence config.env.MONGO_DB_HOST, config.env.MONGO_DB_PORT, config.env.MONGO_DB_NAME
   persistence.connect () ->
     for env in config.environments
       persistence.load_environment env
@@ -74,7 +79,7 @@ setup_server = () ->
                     console.log "Deploy to #{environment_name} being picked up by #{plugin_name}"
                     console.log plugin
                     Plugin = require "./content/plugins/#{plugin.deploy.hook.file}"
-                    p = new Plugin plugin.params, persistence
+                    p = new Plugin config, plugin.params, persistence
                     p[plugin.deploy.hook.method] environment_name, req.body, (response) ->
                       console.log "Deploy to #{environment_name} call back from #{plugin_name}"
                       console.log response
@@ -101,7 +106,7 @@ setup_server = () ->
         else
           res.send {"success": true}
 
-  port = process.env.DXMANAGER_PORT || 8080
+  port = config.env.PORT || 8080
   app.listen port
   console.log "Listening on port #{port}"
 

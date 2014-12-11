@@ -166,7 +166,8 @@ function EnvironmentCtrl($scope, $http, Properties){
     var env = $scope.environment_map[name];
     var blob = [
       {name: "Host", val: env.host },
-      {name: "Holder", val: env.holder || "None"}
+      {name: "Holder", val: env.holder || "None"},
+      {name: "Msg", val: env.message || "None"}
     ];
     if ('deploy' in env && 'display_values' in env.deploy){
       for (var i in env.deploy.display_values){

@@ -1,50 +1,53 @@
 ---
-mongo:
-  host: '127.0.0.1'
-  port: '27017'
-  db: "dxmanager"
+env:
+    JENKINS_URL: 'SETME'
+    JENKINS_USER: 'SETME'
+    JENKINS_USER_TOKEN: 'SETME'
+    JENKINS_JOB_TOKEN: "SETME"
+    MONGO_DB_HOST: 'localhost'
+    MONGO_DB_PORT: 27017
+    MONGO_DB_NAME: 'sl_manager'
+    PORT: 8080
 environments:
   - label: UI Staging 1
-    name: stg1
+    name: stg-ui-1
     host: stg-ui-app01
   - label: UI Staging 2
-    name: stg2
+    name: stg-ui-2
     host: stg-ui-app02
   - label: UI Staging 3
-    name: stg3
+    name: stg-ui-3
     host: stg-ui-app03
   - label: UI Staging 4
-    name: stg4
+    name: stg-ui-4
     host: stg-ui-app04
   - label: UI Staging Cluster 5 and 6
-    name: stg-cluster
+    name: stg-ui--cluster
     host: stage_user_interface_cluster
   - label: UI Staging 7
-    name: stg7
+    name: stg-ui-7
     host: stg-ui-app07
   - label: UI Staging 8
-    name: stg8
+    name: stg-ui-8
     host: stg-ui-app08
   - label: UI Staging 9
-    name: stg9
+    name: stg-ui-9
     host: stg-ui-app09
   - label: UI Staging 10
-    name: stg10
+    name: stg-ui-10
     host: stg-ui-app10
   - label: UI Staging 11
-    name: stg11
+    name: stg-ui-11
     host: stg-ui-app11
   - label: UI Staging 12
-    name: stg12
+    name: stg-ui-12
     host: stg-ui-app12
 plugins:
   jenkins:
     params:
-      host: "jenkins.bos.dataxu.net"
-      job_name: "staging-deploy_user-interface_hash"
-      token: "triggermetimbers"
+      job_name: "user-interface_deploy_staging"
     deploy:
-      matcher: "stg*"
+      matcher: "stg-ui-.*"
       input:
         name: hash
         placeholder: "Git Hash or Branch"

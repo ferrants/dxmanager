@@ -2,10 +2,13 @@ http = require 'http'
 urlencode = require 'urlencode'
 
 class Jenkins
-  constructor: (params, persistence) ->
-    @host = params.host
+  constructor: (config, params, persistence) ->
+    @host = config.env.JENKINS_URL
+    @user = config.env.JENKINS_USER
+    @user_token = config.env.JENKINS_USER_TOKEN
+    @token = config.env.JENKINS_JOB_TOKEN
+
     @job_name = params.job_name
-    @token = params.token
     @recheck_seconds = if params.recheck_seconds? then params.recheck_seconds else 30
     @persistence = persistence
 
@@ -28,36 +31,56 @@ class Jenkins
         data_body = {
           'parameter': [
             {
-              'name': 'GIT_HASH',
+              'name': 'hash',
               'value': params.hash
             },
             {
-              'name': 'STAGING_ENVIRONMENT',
+              'name': 'environment',
               'value': env.host
+            },
+            {
+              'name': 'run_type',
+              'value': 'deploy'
+              # 'value': 'dry'
+            },
+            {
+              'name': 'branch',
+              'value': 'master'
             }
           ]
         }
         jenkins.start_job data_body, (build) ->
           console.log "Started Job #{jenkins.job_name}"
 
-          console.log build
-          if build.building == false
-            env.busy = false
+          if build
+            console.log "Build:"
+            console.log build
+            if build.building == false
+              env.busy = false
+            else
+              recheck_interval = false
+              recheck_build_status = () ->
+                jenkins.get_build build.number, (build) ->
+                  if build.building == false
+                    clearInterval recheck_interval
+                    env.busy = false
+                    env.message = "Status: #{build.result}"
+                    persistence.save_environment(env)
+
+              recheck_interval = setInterval(recheck_build_status, jenkins.recheck_seconds * 1000)
+
+            env.link = build.url
+            env.message = "job started"
+
+            persistence.save_environment(env)
+
+            cb( {"success": "job started", "build": build} )
           else
-            recheck_interval = false
-            recheck_build_status = () ->
-              jenkins.get_build build.number, (build) ->
-                if build.building == false
-                  clearInterval recheck_interval
-                  env.busy = false
-                  persistence.save_environment(env)
+            env.busy = false
+            env.message = "unable to start build"
+            persistence.save_environment(env)
+            cb( {"error": "unable to start build"} )
 
-            recheck_interval = setInterval(recheck_build_status, jenkins.recheck_seconds * 1000)
-
-          env.link = build.url
-          persistence.save_environment(env)
-
-          cb( {"success": "job started", "build": build} )
     else
       cb {"error": "no git hash provided"}
 
@@ -74,14 +97,15 @@ class Jenkins
         path: "/job/#{jenkins.job_name}/build?token=#{jenkins.token}"
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Content-Length': post_body.length
+          'Content-Length': post_body.length,
+          'Authorization': 'Basic ' + new Buffer("#{@user}:#{@user_token}").toString('base64')
         }
       }
 
       last_build = false
       get_started_build = (cb) ->
         jenkins.get_last_build (build) ->
-          if build.url == last_build.url
+          if build and build.url == last_build.url
             get_started_build cb
           else
             cb(build)
